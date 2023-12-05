@@ -5,12 +5,13 @@ import os
 import hashlib
 import multiprocessing
 from multiprocessing import Manager, Pool
-from Chess_ai import AI
 from tkinter import messagebox
 from functools import partial
+from chess_ai import AI
+from chess_logic import train_ai_parallel, play_game
 
 
-class ChessApp:
+class chessapp:
     def __init__(self, root, ai):
         self.board = chess.Board()
         self.root = root
@@ -27,6 +28,7 @@ class ChessApp:
         self.update_score_display()
 
         self.draw_board()
+        pass
 
     def setup_ui(self):
         self.menu_frame = tk.Frame(self.root)
@@ -274,63 +276,6 @@ class ChessApp:
     def load_game_data(self):
         self.ai.load_game_data()
 
-    def play_game(args):
-        ai, game_num, num_games, save_callback = args
-        board = chess.Board()
-        while not board.is_game_over():
-            move = ai.choose_move(board)
-            if move in board.legal_moves:
-                board.push(move)
-            else:
-                print(
-                    f"Illegal move attempted by AI in game {game_num}: {move.uci()}")
-                break
-
-        if board.result() == "1-0":
-            game_outcome = 'win'
-        elif board.result() == "0-1":
-            game_outcome = 'loss'
-        else:
-            game_outcome = 'draw'
-
-        game_data = {
-            'result': game_outcome,
-            'moves': [(move.uci(), board.piece_at(move.from_square).piece_type)
-                    if board.piece_at(move.from_square)
-                    else (move.uci(), None)
-                    for move in board.move_stack]
-        }
-        save_callback(game_num)
-
-        return game_data
-
-
-    def train_ai_parallel(ai, num_games=1000, num_processes=4):
-        progress = Manager().Value('i', 0)
-        game_data_list = Manager().list()
-
-        def save_game_data_callback(game_num, game_data_list):
-            if game_num % 10 == 0:
-                print(f"Completed {game_num} games out of {num_games}")
-
-            game_data_list.append(game_num)
-
-        partial_callback = partial(
-            save_game_data_callback, game_data_list=game_data_list)
-
-        with Pool(num_processes) as pool:
-            pool.starmap(play_game, [
-                (ai, i, num_games, partial_callback) for i in range(num_games)
-            ])
-
-        pool.close()
-        pool.join()
-
-        for game_data in game_data_list:
-            ai.save_game_data(game_data)
-
-        print("All games completed.")
-
 def start_program():
     choice = messagebox.askquestion(
         "Chess App", "Do you want to train or open the GUI?")
@@ -345,19 +290,4 @@ def start_program():
         ai_instance = AI()
         app = ChessApp(root, ai_instance)
         root.mainloop()
-
-
-if __name__ == "__main__":
-    choice = messagebox.askquestion(
-        "Chess App", "Do you want to train or open the GUI?")
-    if choice == "yes":
-        num_games = int(input("Enter the number of games to train the AI: "))
-        num_processes = int(input("Enter the number of processes: "))
-        ai_instance = AI()
-        train_ai_parallel(ai_instance, num_games, num_processes)
-    else:
-        root = tk.Tk()
-        root.title("Chess App")
-        ai_instance = AI()
-        app = ChessApp(root, ai_instance)
-        root.mainloop()
+    pass
