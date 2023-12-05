@@ -109,28 +109,33 @@ class AI:
     def load_q_table(self, path):
         with open(path, 'rb') as f:
             self.q_table = pickle.load(f)
-    
-def save_game_data(self, game_data):
-    game_data_str = json.dumps(game_data)
-    game_hash = hashlib.sha256(game_data_str.encode()).hexdigest()
 
-    directory_path = os.path.join(os.getcwd(), 'game_data')
-    os.makedirs(directory_path, exist_ok=True)
 
-    game_data_file_path = os.path.join(directory_path, f'game_data_{game_hash}.json')
-    hash_file_path = os.path.join(directory_path, 'game_hashes.txt')
+    def save_game_data(self, game_data, teach_mode=False):
+        game_data_str = json.dumps(game_data)
+        game_hash = hashlib.sha256(game_data_str.encode()).hexdigest()
 
-    print(f"Saving Game Data to: {game_data_file_path}")
-    print(f"Saving Game Hash to: {hash_file_path}")
+        game_data_file_path = f'game_data_{game_hash}.json'
+        hash_file_path = 'game_hashes.txt'
 
-    with open(hash_file_path, 'a') as hash_file:
-        hash_file.write(game_hash + '\n')
+        with open(hash_file_path, 'a') as hash_file:
+            hash_file.write(game_hash + '\n')
 
-    with open(game_data_file_path, 'w') as data_file:
-        json.dump(game_data, data_file)
+        with open(game_data_file_path, 'w') as data_file:
+            json.dump(game_data, data_file)
 
-    print("Game Data Saved Successfully.")
+        if not teach_mode:
+            self.process_game_data(game_data)
 
+
+    def retrieve_game_data(self, game_hash):
+        game_data_file_path = f'game_data_{game_hash}.json'
+        try:
+            with open(game_data_file_path, 'r') as data_file:
+                game_data = json.load(data_file)
+            return game_data
+        except FileNotFoundError:
+            return None
 
     def retrieve_game_data(self, game_hash):
         game_data_file_path = f'game_data_{game_hash}.json'

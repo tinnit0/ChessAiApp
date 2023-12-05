@@ -4,7 +4,7 @@ import chess
 import os
 import hashlib
 import multiprocessing
-from multiprocessing import Pool
+from multiprocessing import Manager, Pool
 from Chess_ai import AI
 from tkinter import messagebox
 from functools import partial
@@ -21,6 +21,7 @@ class ChessApp:
         self.scores = {'white': 0, 'black': 0, 'draw': 0}
         self.teaching = False
         self.teaching_speed_limit = 5
+        self.ai_instance = AI()
 
         self.setup_ui()
         self.update_score_display()
@@ -176,11 +177,12 @@ class ChessApp:
         game_data = {
             'result': game_outcome,
             'moves': [(move.uci(), self.board.piece_at(move.from_square).piece_type)
-                      if self.board.piece_at(move.from_square)
-                      else (move.uci(), None)
-                      for move in self.board.move_stack]
+                    if self.board.piece_at(move.from_square)
+                    else (move.uci(), None)
+                    for move in self.board.move_stack]
         }
-        self.ai.save_game_data(game_data)
+
+        self.ai_instance.save_game_data(game_data)
         self.board.reset()
         self.draw_board()
 
@@ -255,112 +257,79 @@ class ChessApp:
         if self.ai_delay > 100:
             self.ai_delay //= 2
 
+
     def human_vs_ai(self):
         self.teaching = False
         self.ai_mode = False
         try:
             self.teaching_window.destroy()
-        except AttributeError:
+        except tk.TclError:
             pass
         self.reset_game()
 
-
-def save_game_data(self, game_data):
-    self.ai.save_game_data(game_data)
-
-
-def load_game_data(self):
-    self.ai.load_game_data()
+    def save_game_data(self, game_data):
+        self.ai.save_game_data(game_data)
 
 
-def play_game(args):
-    ai, game_num, num_games = args
-    board = chess.Board()
-    while not board.is_game_over():
-        move = ai.choose_move(board)
-        if move in board.legal_moves:
-            board.push(move)
-        else:
-            print(
-                f"Illegal move attempted by AI in game {game_num}: {move.uci()}")
-            break
+    def load_game_data(self):
+        self.ai.load_game_data()
 
-    if board.result() == "1-0":
-        game_outcome = 'win'
-    elif board.result() == "0-1":
-        game_outcome = 'loss'
-    else:
-        game_outcome = 'draw'
-
-    game_data = {
-        'result': game_outcome,
-        'moves': [(move.uci(), board.piece_at(move.from_square).piece_type)
-                  if board.piece_at(move.from_square)
-                  else (move.uci(), None)
-                  for move in board.move_stack]
-    }
-    ai.save_game_data(game_data)
-
-    if (game_num + 1) % 10 == 0:
-        print(f"Completed {game_num + 1} games out of {num_games}")
-
-
-def play_game_and_callback(args):
-    ai, game_num, num_games, callback = args
-    board = chess.Board()
-    while not board.is_game_over():
-        move = ai.choose_move(board)
-        if move in board.legal_moves:
-            board.push(move)
-        else:
-            print(
-                f"Illegal move attempted by AI in game {game_num}: {move.uci()}")
-            break
-
-    if board.result() == "1-0":
-        game_outcome = 'win'
-    elif board.result() == "0-1":
-        game_outcome = 'loss'
-    else:
-        game_outcome = 'draw'
-
-    game_data = {
-        'result': game_outcome,
-        'moves': [(move.uci(), board.piece_at(move.from_square).piece_type)
-                  if board.piece_at(move.from_square)
-                  else (move.uci(), None)
-                  for move in board.move_stack]
-    }
-    ai.save_game_data(game_data)
-
-    if (game_num + 1) % 10 == 0:
-        print(f"Completed {game_num + 1} games out of {num_games}")
-
-    callback(game_num + 1)
-
-
-def train_ai_parallel(ai, num_games=1000, num_processes=4):
-    progress = multiprocessing.Value('i', 0)
-
-
-    def update_progress(completed_games):
-        with progress.get_lock():
-            progress.value = completed_games
-            if completed_games % 100 == 0:
+    def play_game(args):
+        ai, game_num, num_games, save_callback = args
+        board = chess.Board()
+        while not board.is_game_over():
+            move = ai.choose_move(board)
+            if move in board.legal_moves:
+                board.push(move)
+            else:
                 print(
-                    f"Debug: Completed {completed_games} games out of {num_games}")
+                    f"Illegal move attempted by AI in game {game_num}: {move.uci()}")
+                break
 
-    with multiprocessing.Pool(num_processes) as pool:
-        pool.imap_unordered(
-            play_game_and_callback, [
-                (ai, i, num_games, update_progress) for i in range(num_games)]
-        )
+        if board.result() == "1-0":
+            game_outcome = 'win'
+        elif board.result() == "0-1":
+            game_outcome = 'loss'
+        else:
+            game_outcome = 'draw'
+
+        game_data = {
+            'result': game_outcome,
+            'moves': [(move.uci(), board.piece_at(move.from_square).piece_type)
+                    if board.piece_at(move.from_square)
+                    else (move.uci(), None)
+                    for move in board.move_stack]
+        }
+        save_callback(game_num)
+
+        return game_data
+
+
+    def train_ai_parallel(ai, num_games=1000, num_processes=4):
+        progress = Manager().Value('i', 0)
+        game_data_list = Manager().list()
+
+        def save_game_data_callback(game_num, game_data_list):
+            if game_num % 10 == 0:
+                print(f"Completed {game_num} games out of {num_games}")
+
+            game_data_list.append(game_num)
+
+        partial_callback = partial(
+            save_game_data_callback, game_data_list=game_data_list)
+
+        with Pool(num_processes) as pool:
+            pool.starmap(play_game, [
+                (ai, i, num_games, partial_callback) for i in range(num_games)
+            ])
 
         pool.close()
         pool.join()
 
-    print("All games completed.")
+        for game_data in game_data_list:
+            ai.save_game_data(game_data)
 
+        print("All games completed.")
 
 def start_program():
     choice = messagebox.askquestion(
