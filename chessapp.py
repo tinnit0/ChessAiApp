@@ -2,14 +2,13 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import chess
 import os
-import hashlib
-import multiprocessing
+import subprocess
 from multiprocessing import Manager, Pool
 from tkinter import messagebox
 from functools import partial
 from chess_ai import AI
-from chess_logic import train_ai_parallel, play_game
-
+from chess_logic import train_ai_parallel
+import sys
 
 class chessapp:
     def __init__(self, root, ai):
@@ -23,6 +22,7 @@ class chessapp:
         self.teaching = False
         self.teaching_speed_limit = 5
         self.ai_instance = AI()
+        
 
         self.setup_ui()
         self.update_score_display()
@@ -33,17 +33,20 @@ class chessapp:
     def setup_ui(self):
         self.menu_frame = tk.Frame(self.root)
         self.menu_frame.grid(row=0, column=8, rowspan=8, sticky="nsew")
+
         buttons = [
             ("Reset", self.reset_game),
             ("AI vs AI", self.ai_vs_ai),
             ("Speed Up", self.speed_up),
             ("Slow Down", self.slow_down),
             ("Human vs AI", self.human_vs_ai),
+            ("Teaching Mode", self.start_teaching_mode),
         ]
 
         for text, cmd in buttons:
             button = tk.Button(self.menu_frame, text=text, command=cmd)
             button.pack(pady=20)
+
 
     def piece_to_image_name(self, piece):
         return f"{piece.symbol().lower()}{'W' if piece.color == chess.WHITE else 'B'}.png"
@@ -52,7 +55,7 @@ class chessapp:
         image_name = self.piece_to_image_name(piece)
         if image_name not in self.image_cache:
             image_path = os.path.join(
-                "C:\\Users\\tombo\\OneDrive\\Bureaublad\\Chess game\\Icons", image_name)
+                "ChessAiApp\\Icons", image_name)
             self.image_cache[image_name] = ImageTk.PhotoImage(
                 Image.open(image_path))
         return self.image_cache[image_name]
@@ -250,6 +253,16 @@ class chessapp:
     def reset_game_and_continue_ai(self):
         self.reset_game()
         self.ai_vs_ai()
+    
+    def start_teaching_mode(self):
+
+        python_path = sys.executable
+
+        script_path = os.path.join(
+            os.path.dirname(__file__), 'chesstraining.py')
+
+        subprocess.Popen([python_path, script_path])
+        sys.exit()
 
     def slow_down(self):
         if self.ai_delay < 4000:
@@ -276,18 +289,14 @@ class chessapp:
     def load_game_data(self):
         self.ai.load_game_data()
 
+
 def start_program():
-    choice = messagebox.askquestion(
-        "Chess App", "Do you want to train or open the GUI?")
-    if choice == "yes":
-        num_games = int(input("Enter the number of games to train the AI: "))
-        num_processes = int(input("Enter the number of processes: "))
-        ai_instance = AI()
-        train_ai_parallel(ai_instance, num_games, num_processes)
-    else:
-        root = tk.Tk()
-        root.title("Chess App")
-        ai_instance = AI()
-        app = ChessApp(root, ai_instance)
-        root.mainloop()
-    pass
+    root = tk.Tk()
+    root.title("Chess App")
+    ai_instance = AI()
+    app = chessapp(root, ai_instance)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    start_program()
