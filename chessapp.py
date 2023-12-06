@@ -3,12 +3,12 @@ from PIL import Image, ImageTk
 import chess
 import os
 import subprocess
-from multiprocessing import Manager, Pool
 from tkinter import messagebox
-from functools import partial
 from chess_ai import AI
-from chess_logic import train_ai_parallel
+import chess.engine
 import sys
+from stockfish import Stockfish
+
 
 class chessapp:
     def __init__(self, root, ai):
@@ -22,7 +22,6 @@ class chessapp:
         self.teaching = False
         self.teaching_speed_limit = 5
         self.ai_instance = AI()
-        
 
         self.setup_ui()
         self.update_score_display()
@@ -41,12 +40,12 @@ class chessapp:
             ("Slow Down", self.slow_down),
             ("Human vs AI", self.human_vs_ai),
             ("Teaching Mode", self.start_teaching_mode),
+            ("AI vs Stockfish (1000)", self.start_ai_vs_stockfish),
         ]
 
         for text, cmd in buttons:
             button = tk.Button(self.menu_frame, text=text, command=cmd)
             button.pack(pady=20)
-
 
     def piece_to_image_name(self, piece):
         return f"{piece.symbol().lower()}{'W' if piece.color == chess.WHITE else 'B'}.png"
@@ -163,6 +162,46 @@ class chessapp:
                 clicked_frame = self.root.grid_slaves(row=row, column=col)[0]
                 self.selected_label = clicked_frame.winfo_children()[0]
                 self.selected_label.config(bg='yellow')
+    
+    def start_ai_vs_stockfish(self):
+        try:
+            stockfish_rating = 1000
+            stockfish_path = "C:\\xampp\\htdocs\\ChessAiApp\\stockfish"
+            stockfish_executable = os.path.join(stockfish_path, "stockfish")
+
+            stockfish = chess.engine.SimpleEngine.popen_uci(stockfish_executable)
+
+            game = chess.pgn.Game()
+            game.headers["Event"] = "AI vs Stockfish"
+            game.headers["White"] = "AI"
+            game.headers["Black"] = f"Stockfish {stockfish_rating}"
+
+            while not self.board.is_game_over():
+                if self.board.turn == chess.WHITE:
+                    move = self.ai.choose_move(self.board)
+                else:
+                    result = stockfish.play(
+                        self.board, chess.engine.Limit(time=2.0))
+                    move = result.move
+
+                self.board.push(move)
+
+            game.add_line([move.uci() for move in self.board.move_stack])
+            result = self.board.result()
+
+            if result == "1-0":
+                winner = "AI"
+            elif result == "0-1":
+                winner = "Stockfish"
+            else:
+                winner = "Draw"
+
+            messagebox.showinfo(
+                "Game Result", f"The game is over! Winner: {winner}")
+            stockfish.quit()
+
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
 
     def reset_game(self):
         result = self.board.result()

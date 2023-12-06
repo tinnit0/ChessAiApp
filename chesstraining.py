@@ -34,9 +34,8 @@ class trainingapp:
                 "Error", "Invalid input. Please enter valid numbers.")
             return
 
-        ai_instance = AI()
         threading.Thread(target=self.run_training, args=(
-            num_games, num_processes, ai_instance)).start()
+            num_games, num_processes)).start()
 
     def create_progress_bars(self, num_processes):
         for i in range(num_processes):
@@ -54,9 +53,11 @@ class trainingapp:
         progressbar.step(value)
         self.root.update_idletasks()
 
-    def run_training(self, num_games, num_processes, ai_instance):
+    def run_training(self, num_games, num_processes):
+        ai_instance = AI()
         self.create_progress_bars(num_processes)
-        results = train_ai_parallel(num_games, num_processes, ai_instance)
+        results = train_ai_parallel(
+            ai_instance, num_games, num_processes, self.progress_queue)
         messagebox.showinfo("Training Completed",
                             "AI training completed successfully.")
         self.progressbars = []
