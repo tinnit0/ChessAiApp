@@ -8,7 +8,9 @@ from chess_ai import AI
 import chess.engine
 import sys
 from stockfish import Stockfish
-
+import chess.pgn
+import threading
+import queue
 
 class chessapp:
     def __init__(self, root, ai):
@@ -25,6 +27,7 @@ class chessapp:
 
         self.setup_ui()
         self.update_score_display()
+        self.stockfish_queue = queue.Queue()
 
         self.draw_board()
         pass
@@ -36,8 +39,6 @@ class chessapp:
         buttons = [
             ("Reset", self.reset_game),
             ("AI vs AI", self.ai_vs_ai),
-            ("Speed Up", self.speed_up),
-            ("Slow Down", self.slow_down),
             ("Human vs AI", self.human_vs_ai),
             ("Teaching Mode", self.start_teaching_mode),
             ("AI vs Stockfish (1000)", self.start_ai_vs_stockfish),
@@ -162,21 +163,11 @@ class chessapp:
                 clicked_frame = self.root.grid_slaves(row=row, column=col)[0]
                 self.selected_label = clicked_frame.winfo_children()[0]
                 self.selected_label.config(bg='yellow')
-    
-    def start_ai_vs_stockfish(self):
+
+    def run_stockfish_moves(self, stockfish):
         try:
-            stockfish_rating = 1000
-            stockfish_path = "C:\\xampp\\htdocs\\ChessAiApp\\stockfish"
-            stockfish_executable = os.path.join(stockfish_path, "stockfish")
-
-            stockfish = chess.engine.SimpleEngine.popen_uci(stockfish_executable)
-
-            game = chess.pgn.Game()
-            game.headers["Event"] = "AI vs Stockfish"
-            game.headers["White"] = "AI"
-            game.headers["Black"] = f"Stockfish {stockfish_rating}"
-
-            while not self.board.is_game_over():
+            def make_ai_move():
+                print("Making AI move...")
                 if self.board.turn == chess.WHITE:
                     move = self.ai.choose_move(self.board)
                 else:
@@ -185,23 +176,88 @@ class chessapp:
                     move = result.move
 
                 self.board.push(move)
+                self.update_stockfish_gui()
 
-            game.add_line([move.uci() for move in self.board.move_stack])
-            result = self.board.result()
+                if not self.board.is_game_over():
+                    self.root.after(1000, make_stockfish_move)
+                else:
+                    print("Game over!")
 
-            if result == "1-0":
-                winner = "AI"
-            elif result == "0-1":
-                winner = "Stockfish"
-            else:
-                winner = "Draw"
+            def make_stockfish_move():
+                try:
+                    print("Making Stockfish move...")
+                    if self.board.turn == chess.BLACK:
+                        result = stockfish.play(
+                            self.board, chess.engine.Limit(time=2.0))
+                        move = result.move
+                        self.board.push(move)
+                        self.update_stockfish_gui()
+                except chess.engine.EngineTerminatedError as e:
+                    print(f"Stockfish engine terminated: {e}")
+                    return  # Terminate the thread gracefully
 
-            messagebox.showinfo(
-                "Game Result", f"The game is over! Winner: {winner}")
-            stockfish.quit()
+                if not self.board.is_game_over():
+                    self.root.after(1000, make_ai_move)
+                else:
+                    print("Game over!")
+
+            make_ai_move()
 
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
+        finally:
+            if stockfish.is_alive():
+                stockfish.quit()
+            self.stockfish_thread = None
+
+    def update_stockfish_gui(self):
+        self.update_square(
+            self.board.move_stack[-1].from_square % 8, 7 - (self.board.move_stack[-1].from_square // 8))
+        self.update_square(
+            self.board.move_stack[-1].to_square % 8, 7 - (self.board.move_stack[-1].to_square // 8))
+
+    def update_gui_after_stockfish_moves(self):
+        self.root.after(100, self.perform_update_gui_after_stockfish_moves)
+
+
+    def perform_update_gui_after_stockfish_moves(self):
+        self.reset_game()
+        self.root.update()
+        self.root.update_idletasks()
+
+    def start_ai_vs_stockfish(self):
+        try:
+            stockfish_rating = 1000
+            stockfish_path = "C:\\xampp\\htdocs\\ChessAiApp\\stockfish"
+            stockfish_executable = os.path.join(
+                stockfish_path, "stockfish-windows-x86-64-avx2.exe")
+
+            if not os.path.exists(stockfish_executable):
+                raise FileNotFoundError(
+                    f"Stockfish executable not found: {stockfish_executable}")
+
+            stockfish = chess.engine.SimpleEngine.popen_uci(
+                stockfish_executable)
+
+            stockfish_thread = threading.Thread(
+                target=self.run_stockfish_moves, args=(stockfish,), daemon=True)
+            stockfish_thread.start()
+
+            self.stockfish_thread = stockfish_thread
+
+            self.root.after(
+                100, lambda: self.check_stockfish_thread(self.stockfish_thread))
+        except FileNotFoundError as e:
+            messagebox.showerror("Error", str(e))
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def check_stockfish_thread(self, stockfish_thread):
+        if stockfish_thread and stockfish_thread.is_alive():
+            self.root.after(
+                100, lambda: self.check_stockfish_thread(stockfish_thread))
+        else:
+            self.update_score_display()
 
     def reset_game(self):
         result = self.board.result()
@@ -248,46 +304,53 @@ class chessapp:
                 self.highlight_square(row, col)
 
     def ai_vs_ai(self, teach_mode=False):
-        self.ai_mode = True
+        ai_moves = []
 
-        if self.board.is_game_over():
-            game_data = {
-                'result': 'win' if self.board.result() == '1-0' else 'loss',
-                'moves': [(move.uci(), self.board.piece_at(move.from_square).piece_type)
-                          if self.board.piece_at(move.from_square)
-                          else (move.uci(), None)
-                          for move in self.board.move_stack]
-            }
-            self.ai.save_game_data(game_data)
-
-            if self.ai_mode and not self.board.is_game_over():
-                self.root.after(self.teaching_speed_limit if teach_mode else self.ai_delay,
-                                lambda: self.ai_vs_ai(teach_mode=teach_mode))
-                self.board.reset()
-                self.root.after(self.teaching_speed_limit,
-                                lambda: self.ai_vs_ai(teach_mode=True))
-            else:
-                self.reset_game_and_continue_ai()
-        else:
+        while not self.board.is_game_over():
             move = self.ai.choose_move(self.board)
-            if move:
-                if move in self.board.legal_moves:
-                    self.board.push(move)
-                    print(f"Making AI move: {move.uci()}")
 
-                    if not teach_mode:
-                        self.update_square(move.from_square %
-                                           8, 7 - (move.from_square // 8))
-                        self.update_square(move.to_square %
-                                           8, 7 - (move.to_square // 8))
+            if move and move in self.board.legal_moves:
+                self.board.push(move)
+                print(f"Making AI move: {move.uci()}")
 
-                    self.root.after(self.teaching_speed_limit if self.teaching else self.ai_delay,
-                                    lambda: self.ai_vs_ai(teach_mode=teach_mode))
+                if not teach_mode:
+                    self.update_square(move.from_square %
+                                    8, 7 - (move.from_square // 8))
+                    self.update_square(move.to_square %
+                                    8, 7 - (move.to_square // 8))
 
-                else:
-                    print(f"Illegal move attempted by AI: {move.uci()}")
+                ai_moves.append(move) 
+
+                self.root.after(self.teaching_speed_limit if self.teaching else self.ai_delay,
+                                lambda: self.batch_update_ai_moves(ai_moves, teach_mode=teach_mode))
             else:
-                print("AI cannot find a move.")
+                print("AI cannot find a legal move.")
+                self.reset_game_and_continue_ai()
+
+            while not self.board.is_game_over() and self.board.turn == chess.BLACK:
+                move = self.ai.choose_move(self.board)
+                ai_moves.append(move)
+                self.board.push(move)
+
+            if ai_moves:
+                self.root.after(self.teaching_speed_limit if self.teaching else self.ai_delay,
+                                lambda: self.batch_update_ai_moves(ai_moves, teach_mode=teach_mode))
+
+    def batch_update_ai_moves(self, moves, teach_mode=False):
+        for move in moves:
+            if move in self.board.legal_moves:
+                self.board.push(move)
+                print(f"Making AI move: {move.uci()}")
+
+                if not teach_mode:
+                    self.update_square(move.from_square %
+                                    8, 7 - (move.from_square // 8))
+                    self.update_square(move.to_square %
+                                    8, 7 - (move.to_square // 8))
+
+        self.root.after(self.teaching_speed_limit if self.teaching else self.ai_delay,
+                        lambda: self.ai_vs_ai(teach_mode=teach_mode))
+
 
     def reset_game_and_continue_ai(self):
         self.reset_game()
@@ -302,16 +365,7 @@ class chessapp:
 
         subprocess.Popen([python_path, script_path])
         sys.exit()
-
-    def slow_down(self):
-        if self.ai_delay < 4000:
-            self.ai_delay *= 2
-
-    def speed_up(self):
-        if self.ai_delay > 100:
-            self.ai_delay //= 2
-
-
+        
     def human_vs_ai(self):
         self.teaching = False
         self.ai_mode = False
@@ -334,7 +388,10 @@ def start_program():
     root.title("Chess App")
     ai_instance = AI()
     app = chessapp(root, ai_instance)
+    root.after(100, app.check_stockfish_thread, app.stockfish_thread)
     root.mainloop()
+    root.update_idletasks()
+    root.update()
 
 
 if __name__ == "__main__":

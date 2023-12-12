@@ -1,4 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from queue import Queue
 import chess
 from chess_ai import AI
 
@@ -35,20 +36,19 @@ def play_game(ai_instance, game_num):
     print(f"Game {game_num} completed with outcome: {game_outcome}")
     return game_data
 
-def train_ai_parallel(num_games, num_processes, ai_instance):
+
+def train_ai_parallel(ai_instance, num_games, num_processes, progress_queue):
     with ProcessPoolExecutor(max_workers=num_processes) as executor:
         futures = {executor.submit(
             play_game, ai_instance, game_num): game_num for game_num in range(num_games)}
-        for future in as_completed(futures):
+
+        for i, future in enumerate(as_completed(futures)):
             game_num = futures[future]
             try:
                 game_data = future.result()
-                print(
-                    f"Game {game_num} completed with outcome: {game_data['result']}")
+                progress_queue.put(
+                    (i, f"Game {game_num} completed with outcome: {game_data['result']}", 100))
             except Exception as e:
-                print(f"Error in game {game_num}: {e}")
+                progress_queue.put((i, f"Error in game {game_num}: {e}", 0))
 
     print("All games completed.")
-
-if __name__ == "__main__":
-    train_ai_parallel(num_games=10, num_processes=4)
