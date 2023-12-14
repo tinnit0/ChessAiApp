@@ -108,26 +108,14 @@ class AI:
         with open(path, 'wb') as f:
             pickle.dump(self.q_table, f)
 
+
     def load_game_data(self):
         hash_file_path = 'gamedata/game_hashes.txt'
 
-        try:
+        if os.path.exists(hash_file_path):
             with open(hash_file_path, 'r') as hash_file:
                 unique_hashes = set(hash_file.read().splitlines())
-        except FileNotFoundError:
-            unique_hashes = set()
-            with open(hash_file_path, 'w') as hash_file:
-                pass
-
-        for game_hash in unique_hashes:
-            game_data = self.retrieve_game_data(game_hash)
-
-            if game_data:
-                self.process_game_data(game_data)
-        try:
-            with open(hash_file_path, 'r') as hash_file:
-                unique_hashes = set(hash_file.read().splitlines())
-        except FileNotFoundError:
+        else:
             unique_hashes = set()
             with open(hash_file_path, 'w') as hash_file:
                 pass
@@ -144,6 +132,8 @@ class AI:
 
         hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
         game_data_file_path = 'ChessAiApp\\gamedata\\game_data.json'
+
+        os.makedirs(os.path.dirname(hash_file_path), exist_ok=True)
 
         with open(hash_file_path, 'a') as hash_file:
             hash_file.write(game_hash + '\n')

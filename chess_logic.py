@@ -31,10 +31,14 @@ def play_game(ai_instance, game_num):
                   for move in board.move_stack]
     }
 
-    ai_instance.save_game_data(game_data)
+    try:
+        ai_instance.save_game_data(game_data)
+        print(f"Game {game_num} completed with outcome: {game_outcome}")
+    except Exception as e:
+        print(f"Error saving game data in game {game_num}: {e}")
 
-    print(f"Game {game_num} completed with outcome: {game_outcome}")
     return game_data
+
 
 
 def train_ai_parallel(ai_instance, num_games, num_processes, progress_queue):

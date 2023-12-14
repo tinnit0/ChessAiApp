@@ -11,6 +11,7 @@ from stockfish import Stockfish
 import chess.pgn
 import threading
 import queue
+from chesstraining import trainingapp
 
 class chessapp:
     def __init__(self, root, ai):
@@ -205,10 +206,6 @@ class chessapp:
 
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
-        finally:
-            if stockfish.is_alive():
-                stockfish.quit()
-            self.stockfish_thread = None
 
     def update_stockfish_gui(self):
         self.update_square(
@@ -243,21 +240,11 @@ class chessapp:
                 target=self.run_stockfish_moves, args=(stockfish,), daemon=True)
             stockfish_thread.start()
 
-            self.stockfish_thread = stockfish_thread
-
-            self.root.after(
-                100, lambda: self.check_stockfish_thread(self.stockfish_thread))
+            self.root.after(100, lambda: self.run_stockfish_moves(stockfish))
         except FileNotFoundError as e:
             messagebox.showerror("Error", str(e))
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
-
-    def check_stockfish_thread(self, stockfish_thread):
-        if stockfish_thread and stockfish_thread.is_alive():
-            self.root.after(
-                100, lambda: self.check_stockfish_thread(stockfish_thread))
-        else:
-            self.update_score_display()
 
     def reset_game(self):
         result = self.board.result()
@@ -388,11 +375,14 @@ def start_program():
     root.title("Chess App")
     ai_instance = AI()
     app = chessapp(root, ai_instance)
-    root.after(100, app.check_stockfish_thread, app.stockfish_thread)
+    root.after(100, app.start_ai_vs_stockfish)
     root.mainloop()
     root.update_idletasks()
     root.update()
 
 
 if __name__ == "__main__":
-    start_program()
+    root = tk.Tk()
+    root.title("Chess App")
+    ai_instance = AI()
+    app = chessapp(root, ai_instance)
