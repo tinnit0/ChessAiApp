@@ -16,13 +16,8 @@ def play_game(ai_instance, game_num):
                 f"Illegal move attempted by AI in game {game_num}: {move.uci()}")
             break
 
-    if board.result() == "1-0":
-        game_outcome = 'win'
-    elif board.result() == "0-1":
-        game_outcome = 'loss'
-    else:
-        game_outcome = 'draw'
-
+    game_outcome = 'win' if board.result(
+    ) == "1-0" else 'loss' if board.result() == "0-1" else 'draw'
     game_data = {
         'result': game_outcome,
         'moves': [(move.uci(), board.piece_at(move.from_square).piece_type)
@@ -38,7 +33,6 @@ def play_game(ai_instance, game_num):
         print(f"Error saving game data in game {game_num}: {e}")
 
     return game_data
-
 
 
 def train_ai_parallel(ai_instance, num_games, num_processes, progress_queue):

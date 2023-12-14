@@ -6,7 +6,7 @@ import threading
 from queue import Queue
 
 
-class trainingapp:
+class TrainingApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Teaching App")
@@ -17,13 +17,22 @@ class trainingapp:
         self.setup_ui()
 
     def setup_ui(self):
-        tk.Label(self.root, text="Number of Games:").pack(pady=10)
-        tk.Entry(self.root, textvariable=self.num_games_var).pack(pady=10)
-        tk.Label(self.root, text="Number of Processes:").pack(pady=10)
-        tk.Entry(self.root, textvariable=self.num_processes_var).pack(pady=10)
+        self.create_label("Number of Games:")
+        self.create_entry(self.num_games_var)
+        self.create_label("Number of Processes:")
+        self.create_entry(self.num_processes_var)
 
-        tk.Button(self.root, text="Train AI",
-                  command=self.start_training).pack(pady=20)
+        self.create_button("Train AI", self.start_training)
+        self.root.mainloop()
+
+    def create_label(self, text):
+        tk.Label(self.root, text=text).pack(pady=10)
+
+    def create_entry(self, variable):
+        tk.Entry(self.root, textvariable=variable).pack(pady=10)
+
+    def create_button(self, text, command):
+        tk.Button(self.root, text=text, command=command).pack(pady=20)
 
     def start_training(self):
         try:
@@ -65,5 +74,4 @@ class trainingapp:
 
 if __name__ == '__main__':
     root = tk.Tk()
-    app = trainingapp(root)
-    root.mainloop()
+    app = TrainingApp(root)

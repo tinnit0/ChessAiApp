@@ -5,6 +5,7 @@ import pickle
 import hashlib
 import os
 
+
 class AI:
     PIECE_VALUES = {
         chess.PAWN: 10,
@@ -76,12 +77,13 @@ class AI:
                 elif piece.piece_type == chess.KNIGHT:
                     evaluation += 10
 
-            evaluation += sum(self.PIECE_VALUES[piece.piece_type] * (1 if piece.color == chess.WHITE else -1)
-                            for piece in board.pieces)
+            evaluation += sum(self.PIECE_VALUES[piece.piece_type] * (
+                1 if piece.color == chess.WHITE else -1) for piece in board.pieces)
 
         white_king_square = board.king(chess.WHITE)
         black_king_square = board.king(chess.BLACK)
-        evaluation += -50 * (white_king_square in self.CENTRAL_SQUARES) + 50 * (black_king_square in self.CENTRAL_SQUARES)
+        evaluation += -50 * (white_king_square in self.CENTRAL_SQUARES) + \
+            50 * (black_king_square in self.CENTRAL_SQUARES)
 
         return evaluation
 
@@ -108,16 +110,15 @@ class AI:
         with open(path, 'wb') as f:
             pickle.dump(self.q_table, f)
 
-
     def load_game_data(self):
-        hash_file_path = 'gamedata/game_hashes.txt'
+        hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
 
-        if os.path.exists(hash_file_path):
+        try:
             with open(hash_file_path, 'r') as hash_file:
                 unique_hashes = set(hash_file.read().splitlines())
-        else:
+        except FileNotFoundError:
             unique_hashes = set()
-            with open(hash_file_path, 'w') as hash_file:
+            with open(hash_file_path, 'w'):
                 pass
 
         for game_hash in unique_hashes:
@@ -132,8 +133,6 @@ class AI:
 
         hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
         game_data_file_path = 'ChessAiApp\\gamedata\\game_data.json'
-
-        os.makedirs(os.path.dirname(hash_file_path), exist_ok=True)
 
         with open(hash_file_path, 'a') as hash_file:
             hash_file.write(game_hash + '\n')

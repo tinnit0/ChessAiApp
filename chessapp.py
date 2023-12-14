@@ -7,11 +7,9 @@ from tkinter import messagebox
 from chess_ai import AI
 import chess.engine
 import sys
-from stockfish import Stockfish
-import chess.pgn
 import threading
 import queue
-from chesstraining import trainingapp
+
 
 class chessapp:
     def __init__(self, root, ai):
@@ -31,7 +29,6 @@ class chessapp:
         self.stockfish_queue = queue.Queue()
 
         self.draw_board()
-        pass
 
     def setup_ui(self):
         self.menu_frame = tk.Frame(self.root)
@@ -50,7 +47,7 @@ class chessapp:
             button.pack(pady=20)
 
     def piece_to_image_name(self, piece):
-        return f"{piece.symbol().lower()}{'W' if piece.color == chess.WHITE else 'B'}.png"
+            return f"{piece.symbol().lower()}{'W' if piece.color == chess.WHITE else 'B'}.png"
 
     def get_piece_image(self, piece):
         image_name = self.piece_to_image_name(piece)
@@ -386,3 +383,4 @@ if __name__ == "__main__":
     root.title("Chess App")
     ai_instance = AI()
     app = chessapp(root, ai_instance)
+    root.mainloop()
