@@ -4,6 +4,7 @@ import json
 import pickle
 import hashlib
 import os
+import torch
 
 
 class AI:
@@ -59,7 +60,7 @@ class AI:
         return random.choice(best_moves)
 
     def evaluate_position(self, board):
-        evaluation = 0
+        evaluation = torch.tensor(0.0)
 
         for move in board.legal_moves:
             if board.is_capture(move) and not board.gives_check(move):
@@ -73,19 +74,19 @@ class AI:
             piece = board.piece_at(square)
             if piece:
                 if piece.piece_type == chess.PAWN:
-                    evaluation += 5
+                    evaluation += torch.tensor(5.0)
                 elif piece.piece_type == chess.KNIGHT:
-                    evaluation += 10
+                    evaluation += torch.tensor(10.0)
 
-            evaluation += sum(self.PIECE_VALUES[piece.piece_type] * (
-                1 if piece.color == chess.WHITE else -1) for piece in board.pieces)
+            evaluation += torch.sum(torch.tensor(self.PIECE_VALUES[piece.piece_type]) * (
+                torch.tensor(1) if piece.color == chess.WHITE else torch.tensor(-1)) for piece in board.pieces)
 
         white_king_square = board.king(chess.WHITE)
         black_king_square = board.king(chess.BLACK)
-        evaluation += -50 * (white_king_square in self.CENTRAL_SQUARES) + \
-            50 * (black_king_square in self.CENTRAL_SQUARES)
+        evaluation += -50 * torch.tensor(
+            white_king_square in self.CENTRAL_SQUARES) + 50 * torch.tensor(black_king_square in self.CENTRAL_SQUARES)
 
-        return evaluation
+        return evaluation.item()
 
     def learn_from_data(self, board, move, new_board):
         state = board.fen()
@@ -94,14 +95,14 @@ class AI:
         if new_board.is_checkmate():
             reward = -1000 if new_board.turn == chess.WHITE else 1000
         else:
-            material_value = sum([self.PIECE_VALUES[piece.piece_type] for piece in new_board.pieces(chess.WHITE, True)]) - \
-                sum([self.PIECE_VALUES[piece.piece_type]
-                    for piece in new_board.pieces(chess.BLACK, True)])
-            positional_value = self.evaluate_position(new_board)
+            material_value = torch.tensor(sum([self.PIECE_VALUES[piece.piece_type] for piece in new_board.pieces(chess.WHITE, True)]) -
+                                          sum([self.PIECE_VALUES[piece.piece_type]
+                                               for piece in new_board.pieces(chess.BLACK, True)]))
+            positional_value = torch.tensor(self.evaluate_position(new_board))
 
             reward = material_value + positional_value
 
-        self.batch_data.append((state, move, reward, new_state))
+        self.batch_data.append((state, move, reward.item(), new_state))
 
         if len(self.batch_data) >= self.batch_size:
             self.update_q_values_batch()

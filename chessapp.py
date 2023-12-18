@@ -192,7 +192,7 @@ class chessapp:
                         self.update_stockfish_gui()
                 except chess.engine.EngineTerminatedError as e:
                     print(f"Stockfish engine terminated: {e}")
-                    return  # Terminate the thread gracefully
+                    return
 
                 if not self.board.is_game_over():
                     self.root.after(1000, make_ai_move)
@@ -222,7 +222,7 @@ class chessapp:
     def start_ai_vs_stockfish(self):
         try:
             stockfish_rating = 1000
-            stockfish_path = "C:\\xampp\\htdocs\\ChessAiApp\\stockfish"
+            stockfish_path = "C:\\Project\\ChessAiApp\\stockfish"
             stockfish_executable = os.path.join(
                 stockfish_path, "stockfish-windows-x86-64-avx2.exe")
 
