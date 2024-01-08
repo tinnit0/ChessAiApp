@@ -5,6 +5,7 @@ import pickle
 import hashlib
 import os
 import torch
+import numpy as np
 
 
 class AI:
@@ -29,6 +30,15 @@ class AI:
         self.batch_size = batch_size
         self.batch_data = []
 
+        
+        q_table_path = os.path.join(self.gamedata_folder, 'q_table.pkl')
+        if os.path.exists(q_table_path):
+            self.load_q_table(q_table_path)
+        else:
+            print("No existing Q-table found. Creating a new one.")
+            self.save_q_table(q_table_path)
+        self.load_q_table('ChessAiApp\\gamedata\\q_table.pkl')
+
     def board_hash(self, fen_str):
         hash_object = hashlib.sha256(fen_str.encode())
         return hash_object.hexdigest()
@@ -52,12 +62,16 @@ class AI:
         if random.uniform(0, 1) < self.epsilon:
             return random.choice(legal_moves)
 
-        q_values = {move: self.q_value(board, move) for move in legal_moves}
-        max_q_value = max(q_values.values(), default=0)
-        best_moves = [move for move, q_value in q_values.items()
-                      if q_value == max_q_value]
+        history_q_values = [self.q_value(board, move) for move in legal_moves]
+        if any(history_q_values):
+            q_values = {move: self.q_value(board, move)
+                        for move in legal_moves}
+            max_q_value = max(q_values.values(), default=0)
+            best_moves = [move for move,
+                          q_value in q_values.items() if q_value == max_q_value]
+            return random.choice(best_moves)
 
-        return random.choice(best_moves)
+        return random.choice(legal_moves)
 
     def evaluate_position(self, board):
         evaluation = torch.tensor(0.0)
@@ -111,6 +125,22 @@ class AI:
         with open(path, 'wb') as f:
             pickle.dump(self.q_table, f)
 
+    def load_q_table(self, path):
+        try:
+            with open(path, 'rb') as f:
+                self.q_table = pickle.load(f)
+            print(f"Q-table loaded from {path}")
+        except FileNotFoundError:
+            print(f"Q-table file not found at {path}. Creating a new Q-table.")
+            self.q_table = {}
+
+            self.save_q_table(path)
+    
+    def save_q_table(self, path):
+        with open(path, 'wb') as f:
+            pickle.dump(self.q_table, f)
+        print(f"Q-table saved to {path}")
+
     def load_game_data(self):
         hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
 
@@ -135,10 +165,11 @@ class AI:
         hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
         game_data_file_path = 'ChessAiApp\\gamedata\\game_data.json'
 
-        with open(hash_file_path, 'a') as hash_file:
-            hash_file.write(game_hash + '\n')
+        if game_data['result'] in ['win', 'loss'] or random.random() < 0.1:
+            with open(hash_file_path, 'a') as hash_file:
+                hash_file.write(game_hash + '\n')
 
-        with open(game_data_file_path, 'a') as game_data_file:
-            game_data_file.write(game_data_str + '\n')
+            with open(game_data_file_path, 'a') as game_data_file:
+                game_data_file.write(game_data_str + '\n')
 
-        print(f"Game data saved - Hash: {game_hash}")
+            print(f"Game data saved - Hash: {game_hash}")
