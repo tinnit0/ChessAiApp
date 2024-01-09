@@ -126,20 +126,19 @@ class AI:
         if len(self.batch_data) >= self.batch_size:
             self.update_q_values_batch()
 
-    def save_q_table(self, path):
-        with open(path, 'wb') as f:
+    def save_q_table(self, q_table_path):
+        with open(q_table_path, 'wb') as f:
             pickle.dump(self.q_table, f)
-
-    def load_q_table(self, path):
-        try:
-            with open(path, 'rb') as f:
+    
+    def load_q_table(self, q_table_path):
+        if os.path.exists(q_table_path) and os.path.getsize(q_table_path) > 0:
+            with open(q_table_path, 'rb') as f:
                 self.q_table = pickle.load(f)
-            print(f"Q-table loaded from {path}")
-        except FileNotFoundError:
-            print(f"Q-table file not found at {path}. Creating a new Q-table.")
+        else:
+            print(f"Q-table file '{q_table_path}' is empty or does not exist. Initializing a new Q-table.")
             self.q_table = {}
 
-            self.save_q_table(path)
+        print(f"Q-table loaded from {q_table_path}")
     
     def save_q_table(self, path):
         with open(path, 'wb') as f:
@@ -147,7 +146,7 @@ class AI:
         print(f"Q-table saved to {path}")
 
     def load_game_data(self):
-        hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
+        hash_file_path = 'gamedata\\game_hashes.txt'
 
         try:
             with open(hash_file_path, 'r') as hash_file:
@@ -167,8 +166,8 @@ class AI:
         game_data_str = json.dumps(game_data)
         game_hash = hashlib.sha256(game_data_str.encode()).hexdigest()
 
-        hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
-        game_data_file_path = 'ChessAiApp\\gamedata\\game_data.json'
+        hash_file_path = 'gamedata\\game_hashes.txt'
+        game_data_file_path = 'gamedata\\game_data.json'
 
         if game_data['result'] in ['win', 'loss'] or random.random() < 0.1:
             with open(hash_file_path, 'a') as hash_file:
