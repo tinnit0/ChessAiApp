@@ -20,24 +20,29 @@ class AI:
 
     CENTRAL_SQUARES = [chess.D4, chess.E4, chess.D5, chess.E5]
 
-    def __init__(self, num_games=1000, gamedata_folder='gamedata', batch_size=64):
+    def __init__(self, num_games=1000, gamedata_folder='gamedata', batch_size=64, epsilon=0.2):
         self.q_table = {}
         self.alpha = 0.1
         self.gamma = 0.9
-        self.epsilon = 0.2
+        self.epsilon = epsilon
         self.num_games = num_games
         self.gamedata_folder = gamedata_folder
         self.batch_size = batch_size
         self.batch_data = []
 
-        
         q_table_path = os.path.join(self.gamedata_folder, 'q_table.pkl')
+
+        os.makedirs(self.gamedata_folder, exist_ok=True)
+
         if os.path.exists(q_table_path):
             self.load_q_table(q_table_path)
         else:
             print("No existing Q-table found. Creating a new one.")
             self.save_q_table(q_table_path)
-        self.load_q_table('ChessAiApp\\gamedata\\q_table.pkl')
+
+        self.load_q_table(os.path.join(
+            'ChessAiApp', 'gamedata', 'q_table.pkl'))
+
 
     def board_hash(self, fen_str):
         hash_object = hashlib.sha256(fen_str.encode())
