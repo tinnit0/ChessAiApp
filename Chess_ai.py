@@ -20,7 +20,7 @@ class AI:
 
     CENTRAL_SQUARES = [chess.D4, chess.E4, chess.D5, chess.E5]
 
-    def __init__(self, num_games=1000, gamedata_folder='gamedata', batch_size=64, epsilon=0.2):
+    def __init__(self, num_games=1000, gamedata_folder='gamedata', batch_size=64, epsilon=0.1):
         self.q_table = {}
         self.alpha = 0.1
         self.gamma = 0.9
@@ -65,7 +65,9 @@ class AI:
         legal_moves = list(board.legal_moves)
 
         if random.uniform(0, 1) < self.epsilon:
-            return random.choice(legal_moves)
+            chosen_move = random.choice(legal_moves)
+            print(f"AI chose a random move: {chosen_move.uci()}")
+            return chosen_move
 
         history_q_values = [self.q_value(board, move) for move in legal_moves]
         if any(history_q_values):
@@ -73,10 +75,14 @@ class AI:
                         for move in legal_moves}
             max_q_value = max(q_values.values(), default=0)
             best_moves = [move for move,
-                          q_value in q_values.items() if q_value == max_q_value]
-            return random.choice(best_moves)
+                        q_value in q_values.items() if q_value == max_q_value]
+            chosen_move = random.choice(best_moves)
+            print(f"AI chose the best move from history: {chosen_move.uci()}")
+            return chosen_move
 
-        return random.choice(legal_moves)
+        chosen_move = random.choice(legal_moves)
+        print(f"AI chose a random move: {chosen_move.uci()}")
+        return chosen_move
 
     def evaluate_position(self, board):
         evaluation = torch.tensor(0.0)
@@ -146,7 +152,7 @@ class AI:
         print(f"Q-table saved to {path}")
 
     def load_game_data(self):
-        hash_file_path = 'gamedata\\game_hashes.txt'
+        hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
 
         try:
             with open(hash_file_path, 'r') as hash_file:
@@ -166,8 +172,8 @@ class AI:
         game_data_str = json.dumps(game_data)
         game_hash = hashlib.sha256(game_data_str.encode()).hexdigest()
 
-        hash_file_path = 'gamedata\\game_hashes.txt'
-        game_data_file_path = 'gamedata\\game_data.json'
+        hash_file_path = 'ChessAiApp\\gamedata\\game_hashes.txt'
+        game_data_file_path = 'ChessAiApp\\gamedata\\game_data.json'
 
         if game_data['result'] in ['win', 'loss'] or random.random() < 0.1:
             with open(hash_file_path, 'a') as hash_file:

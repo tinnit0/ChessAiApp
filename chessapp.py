@@ -7,9 +7,11 @@ from tkinter import messagebox
 from chess_ai import AI
 import chess.engine
 import sys
-import threading
 import queue
 import pygame
+from chess_gui import setup_ui, create_square
+from chess_control import chess_control
+
 
 class chessapp:
     def __init__(self, root, ai):
@@ -23,37 +25,31 @@ class chessapp:
         self.teaching = False
         self.teaching_speed_limit = 5
         self.ai_instance = AI()
+        self.chess_control_instance = chess_control()
         pygame.init()
         pygame.mixer.init()
         clock = pygame.time.Clock()
         clock.tick(60)
-        
-        self.setup_ui()
+
+        setup_ui(self)
         self.update_score_display()
         self.stockfish_queue = queue.Queue()
 
+        self.chessboard_frame = tk.Frame(self.root)
+        self.chessboard_frame.grid(
+            row=0, column=0, rowspan=8, columnspan=8, sticky="nsew")
+
         self.draw_board()
-        self.move_sound = pygame.mixer.Sound('sounds\\move-self.mp3')
-        self.capture_sound = pygame.mixer.Sound('sounds\\capture.mp3')
-        self.castling_sound = pygame.mixer.Sound('sounds\\castle.mp3')
-        self.promoting_sound = pygame.mixer.Sound('sounds\\promote.mp3')
-        self.checking_sound = pygame.mixer.Sound('sounds\\move-check.mp3')
-
-    def setup_ui(self):
-        self.menu_frame = tk.Frame(self.root)
-        self.menu_frame.grid(row=0, column=8, rowspan=8, sticky="nsew")
-
-        buttons = [
-            ("Reset", self.reset_game),
-            ("AI vs AI", self.ai_vs_ai),
-            ("Player vs AI", self.human_vs_ai),
-            ("Teaching Mode", self.start_teaching_mode),
-            ("AI vs Stockfish (1000)", self.start_ai_vs_stockfish),
-        ]
-
-        for text, cmd in buttons:
-            button = tk.Button(self.menu_frame, text=text, command=cmd)
-            button.pack(pady=20)
+        self.move_sound = pygame.mixer.Sound(
+            'ChessAiApp\\sounds\\move-self.mp3')
+        self.capture_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\capture.mp3')
+        self.castling_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\castle.mp3')
+        self.promoting_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\promote.mp3')
+        self.checking_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\move-check.mp3')
+        
+        for i in range(8):
+            self.chessboard_frame.grid_rowconfigure(i, weight=1)
+            self.chessboard_frame.grid_columnconfigure(i, weight=1)
 
     def piece_to_image_name(self, piece):
             return f"{piece.symbol().lower()}{'W' if piece.color == chess.WHITE else 'B'}.png"
@@ -62,7 +58,7 @@ class chessapp:
         image_name = self.piece_to_image_name(piece)
         if image_name not in self.image_cache:
             image_path = os.path.join(
-                "Icons", image_name)
+                "ChessAiApp\\Icons", image_name)
             self.image_cache[image_name] = ImageTk.PhotoImage(
                 Image.open(image_path))
         return self.image_cache[image_name]
@@ -80,8 +76,8 @@ class chessapp:
         from_label = from_frame.winfo_children()[0]
 
         if not to_frame.winfo_children():
-        
-            to_label = tk.Label(to_frame, bg=('brown' if (to_row + to_col) % 2 == 0 else 'white'))
+            to_label = tk.Label(to_frame, bg=(
+                'brown' if (to_row + to_col) % 2 == 0 else 'white'))
             to_label.pack(fill=tk.BOTH, expand=True)
         else:
             to_label = to_frame.winfo_children()[0]
@@ -132,44 +128,41 @@ class chessapp:
         for i, move in enumerate(moves):
             self.root.after(i * move_delay, lambda m=move: update_moves([m]))
 
+    def create_square(self, row, col):
+        create_square(self, row, col)
+
+    def start_ai_vs_stockfish(self):
+        self.chess_control_instance.start_ai_vs_stockfish()
+
+    def ai_vs_ai(self):
+        self.chess_control_instance.ai_vs_ai()
+
     def draw_board(self):
         for row in range(8):
             for col in range(8):
                 self.create_square(row, col)
 
-    def create_square(self, row, col):
-        color = '#d9d9d9' if (row + col) % 2 == 0 else '#a9a9a9'
-        frame = tk.Frame(self.root, width=60, height=60, bg=color, borderwidth=1, relief="solid")
-        frame.grid(row=row, column=col, sticky="nsew")
-        frame.grid_propagate(False)
-
-        frame.bind("<Button-1>", lambda event, r=row, c=col: self.on_square_click(r, c))
-
-        piece = self.board.piece_at(chess.square(col, 7 - row))
-        if piece:
-            image = self.get_piece_image(piece)
-            label = tk.Label(frame, image=image, bg=color)
-            label.image = image
-            label.pack(fill=tk.BOTH, expand=True)
-            label.bind("<Button-1>", lambda event, r=row, c=col: self.on_square_click(r, c))
-        else:
-            frame.config(bg=color)
+        for row in range(8):
+            for col in range(8):
+                self.update_square(col, row)
 
     def update_square(self, col, row):
         color = 'brown' if (row + col) % 2 == 0 else 'white'
         position = chess.square(col, 7 - row)
         piece = self.board.piece_at(position)
         frame = self.root.grid_slaves(row=row, column=col)[0]
-        
+
         for widget in frame.winfo_children():
             widget.destroy()
 
         if piece:
             image = self.get_piece_image(piece)
-            label = tk.Label(frame, image=image, bg=color)
+            label = tk.Label(frame, image=image, bg=color,
+                            width=60, height=60, anchor="center")
             label.image = image
             label.pack(fill=tk.BOTH, expand=True)
-            label.bind("<Button-1>", lambda event, row=row, col=col: self.on_square_click(row, col))
+            label.bind("<Button-1>", lambda event, row=row,
+                    col=col: self.on_square_click(row, col))
         else:
             frame.config(bg=color)
 
@@ -312,30 +305,6 @@ class chessapp:
         self.root.update()
         self.root.update_idletasks()
 
-    def start_ai_vs_stockfish(self):
-        try:
-            stockfish_rating = 1000
-            stockfish_path = "C:\\Users\\leusi\\Documents\\GitHub\\ChessAiApp\\stockfish"
-            stockfish_executable = os.path.join(
-                stockfish_path, "stockfish-windows-x86-64-avx2.exe")
-
-            if not os.path.exists(stockfish_executable):
-                raise FileNotFoundError(
-                    f"Stockfish executable not found: {stockfish_executable}")
-
-            stockfish = chess.engine.SimpleEngine.popen_uci(
-                stockfish_executable)
-
-            stockfish_thread = threading.Thread(
-                target=self.run_stockfish_moves, args=(stockfish,), daemon=True)
-            stockfish_thread.start()
-
-            self.root.after(100, lambda: self.run_stockfish_moves(stockfish))
-        except FileNotFoundError as e:
-            messagebox.showerror("Error", str(e))
-        except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
-
     def reset_game(self):
         result = self.board.result()
 
@@ -379,39 +348,6 @@ class chessapp:
             if move.from_square == position:
                 row, col = 7 - (move.to_square // 8), move.to_square % 8
                 self.highlight_square(row, col)
-
-    def ai_vs_ai(self, teach_mode=False):
-        ai_moves = []
-
-        while not self.board.is_game_over():
-            move = self.ai.choose_move(self.board)
-
-            if move and move in self.board.legal_moves:
-                self.board.push(move)
-                print(f"Making AI move: {move.uci()}")
-
-                if not teach_mode:
-                    self.update_square(move.from_square %
-                                    8, 7 - (move.from_square // 8))
-                    self.update_square(move.to_square %
-                                    8, 7 - (move.to_square // 8))
-
-                ai_moves.append(move) 
-
-                self.root.after(self.teaching_speed_limit if self.teaching else self.ai_delay,
-                                lambda: self.batch_update_ai_moves(ai_moves, teach_mode=teach_mode))
-            else:
-                print("AI cannot find a legal move.")
-                self.reset_game_and_continue_ai()
-
-            while not self.board.is_game_over() and self.board.turn == chess.BLACK:
-                move = self.ai.choose_move(self.board)
-                ai_moves.append(move)
-                self.board.push(move)
-
-            if ai_moves:
-                self.root.after(self.teaching_speed_limit if self.teaching else self.ai_delay,
-                                lambda: self.batch_update_ai_moves(ai_moves, teach_mode=teach_mode))
 
     def batch_update_ai_moves(self, moves, teach_mode=False):
         for move in moves:
