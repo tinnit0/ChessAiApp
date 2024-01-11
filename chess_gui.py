@@ -1,7 +1,9 @@
-import chess.svg
 import tkinter as tk
 from PIL import Image, ImageTk
 import chess
+import chess.svg
+import io
+
 
 def setup_ui(self):
     self.menu_frame = tk.Frame(self.root)
@@ -20,36 +22,17 @@ def setup_ui(self):
         button.pack(pady=20)
 
 
-def create_square(self, row, col):
-    icon_size = 60
-    border_width = 1
-    color = '#d9d9d9' if (row + col) % 2 == 0 else '#a9a9a9'
+def create_square(root, row, col, board):
+    squares = board.attacks(chess.E4)
 
-    frame = tk.Frame(self.root, width=icon_size + 2 * border_width, height=icon_size + 2 * border_width,
-                     bg=color, borderwidth=border_width, relief="solid")
+    svg_data = chess.svg.board(board, squares=squares, size=350)
+    svg_image = ImageTk.PhotoImage(Image.open(io.BytesIO(svg_data)))
+
+    frame = tk.Frame(root)
     frame.grid(row=row, column=col, sticky="nsew")
-    frame.grid_propagate(False)
 
-    frame.bind("<Button-1>", lambda event, r=row,
-               c=col: self.on_square_click(r, c))
+    label = tk.Label(frame, image=svg_image)
+    label.image = svg_image
+    label.pack(fill=tk.BOTH, expand=True)
 
-    piece = self.board.piece_at(chess.square(col, 7 - row))
-    if piece:
-        image = self.get_piece_image(piece)
-
-        label = tk.Label(frame, image=image, bg=color,
-                         width=icon_size, height=icon_size, anchor="center")
-        label.image = image
-        label.pack(fill=tk.BOTH, expand=True)
-
-        label.bind("<Button-1>", lambda event, r=row,
-                   c=col: self.on_square_click(r, c))
-    else:
-        label = tk.Label(frame, text="", bg=color,
-                         width=icon_size, height=icon_size)
-        label.pack(fill=tk.BOTH, expand=True)
-
-    for r in range(8):
-        self.root.grid_rowconfigure(r, weight=1)
-    for c in range(8):
-        self.root.grid_columnconfigure(c, weight=1)
+    return frame

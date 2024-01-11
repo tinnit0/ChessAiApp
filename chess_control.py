@@ -12,6 +12,7 @@ class chess_control:
     def __init__(self, chessapp_instance):
         self.chessapp = chessapp_instance
         self.root = self.chessapp.root
+        self.board = chess.Board()
         
     def start_ai_vs_stockfish(self):
         try:

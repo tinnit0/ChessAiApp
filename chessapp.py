@@ -25,7 +25,7 @@ class chessapp:
         self.teaching = False
         self.teaching_speed_limit = 5
         self.ai_instance = AI()
-        self.chess_control_instance = chess_control()
+        self.chess_control_instance = chess_control(self)
         pygame.init()
         pygame.mixer.init()
         clock = pygame.time.Clock()
@@ -39,7 +39,6 @@ class chessapp:
         self.chessboard_frame.grid(
             row=0, column=0, rowspan=8, columnspan=8, sticky="nsew")
 
-        self.draw_board()
         self.move_sound = pygame.mixer.Sound(
             'ChessAiApp\\sounds\\move-self.mp3')
         self.capture_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\capture.mp3')
@@ -128,23 +127,11 @@ class chessapp:
         for i, move in enumerate(moves):
             self.root.after(i * move_delay, lambda m=move: update_moves([m]))
 
-    def create_square(self, row, col):
-        create_square(self, row, col)
-
     def start_ai_vs_stockfish(self):
         self.chess_control_instance.start_ai_vs_stockfish()
 
     def ai_vs_ai(self):
         self.chess_control_instance.ai_vs_ai()
-
-    def draw_board(self):
-        for row in range(8):
-            for col in range(8):
-                self.create_square(row, col)
-
-        for row in range(8):
-            for col in range(8):
-                self.update_square(col, row)
 
     def update_square(self, col, row):
         color = 'brown' if (row + col) % 2 == 0 else 'white'
@@ -336,6 +323,7 @@ class chessapp:
         frame = self.root.grid_slaves(row=row, column=col)[0]
         color = 'gray' if (row + col) % 2 == 0 else 'lightgray'
         frame.config(bg=color)
+
 
     def clear_highlights(self):
         for row in range(8):
