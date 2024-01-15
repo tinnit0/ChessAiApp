@@ -1,398 +1,510 @@
-import tkinter as tk
-from PIL import Image, ImageTk
-import chess
-import os
-import subprocess
-from tkinter import messagebox
-from chess_ai import AI
-import chess.engine
-import sys
-import queue
 import pygame
-from chess_gui import setup_ui, create_square
-from chess_control import chess_control
+import tkinter
+import sys
+#from chess_control import start_ai_vs_stockfish, player_vs_ai
+from chess_ai import AI
+from chesstraining import trainingapp
+
+root = tkinter.Tk()
+  
+board = [['  ' for i in range(8)] for i in range(8)]
+WINDOW_HEIGHT = 600
+WINDOW_WIDTH = WINDOW_HEIGHT
+FRAME_THICKNESS = 0
+WIDTH = WINDOW_HEIGHT - 2 * FRAME_THICKNESS
+ai = AI()
+
+WIN = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 
 
-class chessapp:
-    def __init__(self, root, ai):
-        self.board = chess.Board()
-        self.root = root
-        self.ai = ai
-        self.selected_piece = None
-        self.ai_delay = 1000
-        self.image_cache = {}
-        self.scores = {'white': 0, 'black': 0, 'draw': 0}
-        self.teaching = False
-        self.teaching_speed_limit = 5
-        self.ai_instance = AI()
-        self.chess_control_instance = chess_control(self)
-        pygame.init()
-        pygame.mixer.init()
-        clock = pygame.time.Clock()
-        clock.tick(60)
+##options_list = ["1 Player", "2 Players", "AI vs Stockfish (1000)", "Trainingmode", "Reset board"]
 
-        setup_ui(self)
-        self.update_score_display()
-        self.stockfish_queue = queue.Queue()
+value_inside = tkinter.StringVar(root)
 
-        self.chessboard_frame = tk.Frame(self.root)
-        self.chessboard_frame.grid(
-            row=0, column=0, rowspan=8, columnspan=8, sticky="nsew")
 
-        self.move_sound = pygame.mixer.Sound(
-            'ChessAiApp\\sounds\\move-self.mp3')
-        self.capture_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\capture.mp3')
-        self.castling_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\castle.mp3')
-        self.promoting_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\promote.mp3')
-        self.checking_sound = pygame.mixer.Sound('ChessAiApp\\sounds\\move-check.mp3')
-        
-        for i in range(8):
-            self.chessboard_frame.grid_rowconfigure(i, weight=1)
-            self.chessboard_frame.grid_columnconfigure(i, weight=1)
+#question_menu = tkinter.OptionMenu(root, value_inside, *options_list)
+#question_menu.pack()
 
-    def piece_to_image_name(self, piece):
-            return f"{piece.symbol().lower()}{'W' if piece.color == chess.WHITE else 'B'}.png"
+#move_sound = pygame.mixer.Sound(
+#    'ChessAiApp\\sounds\\move-self.mp3')
+#capture_sound = pygame.mixer.Sound(
+#    'ChessAiApp\\sounds\\capture.mp3')
+#castling_sound = pygame.mixer.Sound(
+#    'ChessAiApp\\sounds\\castle.mp3')
+#promoting_sound = pygame.mixer.Sound(
+#    'ChessAiApp\\sounds\\promote.mp3')
+#checking_sound = pygame.mixer.Sound(
+#    'ChessAiApp\\sounds\\move-check.mp3')
 
-    def get_piece_image(self, piece):
-        image_name = self.piece_to_image_name(piece)
-        if image_name not in self.image_cache:
-            image_path = os.path.join(
-                "ChessAiApp\\Icons", image_name)
-            self.image_cache[image_name] = ImageTk.PhotoImage(
-                Image.open(image_path))
-        return self.image_cache[image_name]
+class Piece:
+    def __init__(self, team, type, image, killable=False):
+        self.team = team
+        self.type = type
+        self.killable = killable
+        self.image = image
 
-    def animate_piece_movement(self, from_square, to_square):
-        from_row, from_col = 7 - (from_square // 8), from_square % 8
-        to_row, to_col = 7 - (to_square // 8), to_square % 8
+bp = Piece('b', 'p', 'ChessAiApp//icons//pB.png')
+wp = Piece('w', 'p', 'ChessAiApp//icons//pW.png')
+bk = Piece('b', 'k', 'ChessAiApp//icons//kB.png')
+wk = Piece('w', 'k', 'ChessAiApp//icons//kW.png')
+br = Piece('b', 'r', 'ChessAiApp//icons//rB.png')
+wr = Piece('w', 'r', 'ChessAiApp//icons//rW.png')
+bb = Piece('b', 'b', 'ChessAiApp//icons//bB.png')
+wb = Piece('w', 'b', 'ChessAiApp//icons//bW.png')
+bq = Piece('b', 'q', 'ChessAiApp//icons//qB.png')
+wq = Piece('w', 'q', 'ChessAiApp//icons//qW.png')
+bkn = Piece('b', 'kn', 'ChessAiApp//icons//nB.png')
+wkn = Piece('w', 'kn', 'ChessAiApp//icons//nW.png')
 
-        piece = self.board.piece_at(from_square)
-        image = self.get_piece_image(piece)
 
-        from_frame = self.root.grid_slaves(row=from_row, column=from_col)[0]
-        to_frame = self.root.grid_slaves(row=to_row, column=to_col)[0]
+starting_order = {(0, 0): pygame.image.load(br.image), (1, 0): pygame.image.load(bkn.image),
+                  (2, 0): pygame.image.load(bb.image), (3, 0): pygame.image.load(bk.image),
+                  (4, 0): pygame.image.load(bq.image), (5, 0): pygame.image.load(bb.image),
+                  (6, 0): pygame.image.load(bkn.image), (7, 0): pygame.image.load(br.image),
+                  (0, 1): pygame.image.load(bp.image), (1, 1): pygame.image.load(bp.image),
+                  (2, 1): pygame.image.load(bp.image), (3, 1): pygame.image.load(bp.image),
+                  (4, 1): pygame.image.load(bp.image), (5, 1): pygame.image.load(bp.image),
+                  (6, 1): pygame.image.load(bp.image), (7, 1): pygame.image.load(bp.image),
 
-        from_label = from_frame.winfo_children()[0]
+                  (0, 2): None, (1, 2): None, (2, 2): None, (3, 2): None,
+                  (4, 2): None, (5, 2): None, (6, 2): None, (7, 2): None,
+                  (0, 3): None, (1, 3): None, (2, 3): None, (3, 3): None,
+                  (4, 3): None, (5, 3): None, (6, 3): None, (7, 3): None,
+                  (0, 4): None, (1, 4): None, (2, 4): None, (3, 4): None,
+                  (4, 4): None, (5, 4): None, (6, 4): None, (7, 4): None,
+                  (0, 5): None, (1, 5): None, (2, 5): None, (3, 5): None,
+                  (4, 5): None, (5, 5): None, (6, 5): None, (7, 5): None,
 
-        if not to_frame.winfo_children():
-            to_label = tk.Label(to_frame, bg=(
-                'brown' if (to_row + to_col) % 2 == 0 else 'white'))
-            to_label.pack(fill=tk.BOTH, expand=True)
-        else:
-            to_label = to_frame.winfo_children()[0]
+                  (0, 6): pygame.image.load(wp.image), (1, 6): pygame.image.load(wp.image),
+                  (2, 6): pygame.image.load(wp.image), (3, 6): pygame.image.load(wp.image),
+                  (4, 6): pygame.image.load(wp.image), (5, 6): pygame.image.load(wp.image),
+                  (6, 6): pygame.image.load(wp.image), (7, 6): pygame.image.load(wp.image),
+                  (0, 7): pygame.image.load(wr.image), (1, 7): pygame.image.load(wkn.image),
+                  (2, 7): pygame.image.load(wb.image), (3, 7): pygame.image.load(wk.image),
+                  (4, 7): pygame.image.load(wq.image), (5, 7): pygame.image.load(wb.image),
+                  (6, 7): pygame.image.load(wkn.image), (7, 7): pygame.image.load(wr.image), }
 
-        to_label.configure(image=image)
-        to_label.image = image
 
-        from_label.grid(row=to_row, column=to_col)
+def create_board(board):
+    board[0] = [Piece('b', 'r', 'b_rook.png'), Piece('b', 'kn', 'b_knight.png'), Piece('b', 'b', 'b_bishop.png'),
+                Piece('b', 'q', 'b_queen.png'), Piece(
+                    'b', 'k', 'b_king.png'), Piece('b', 'b', 'b_bishop.png'),
+                Piece('b', 'kn', 'b_knight.png'), Piece('b', 'r', 'b_rook.png')]
 
-        def animate_frame(frame):
-            current_row = int((from_row * (1 - frame)) + (to_row * frame))
-            current_col = int((from_col * (1 - frame)) + (to_col * frame))
+    board[7] = [Piece('w', 'r', 'w_rook.png'), Piece('w', 'kn', 'w_knight.png'), Piece('w', 'b', 'w_bishop.png'),
+                Piece('w', 'q', 'w_queen.png'), Piece(
+                    'w', 'k', 'w_king.png'), Piece('w', 'b', 'w_bishop.png'),
+                Piece('w', 'kn', 'w_knight.png'), Piece('w', 'r', 'w_rook.png')]
 
-            from_label.grid(row=current_row, column=current_col)
+    for i in range(8):
+        board[1][i] = Piece('b', 'p', 'b_pawn.png')
+        board[6][i] = Piece('w', 'p', 'w_pawn.png')
+    return board
 
-        for frame in range(1, 11):
-            self.root.after(frame * 100, lambda f=frame/10: animate_frame(f))
 
-        from_label.grid_forget()
+def on_board(position):
+    if position[0] > -1 and position[1] > -1 and position[0] < 8 and position[1] < 8:
+        return True
 
-    def batch_update_ai_moves(self, moves, teach_mode=False):
-        move_delay = self.teaching_speed_limit if self.teaching else self.ai_delay
 
-        def update_moves(moves):
-            for move in moves:
-                if move in self.board.legal_moves:
-                    self.board.push(move)
-                    print(f"Making AI move: {move.uci()}")
+def redirect_options(option):
+    #if option == "1 Player":
+        #player_vs_ai()
+    if option == "2 Players":
+        reset_board() #reopen the game
+    #elif option == "AI vs Stockfish (1000)":
+        #start_ai_vs_stockfish()
+    elif option == "Trainingmode":
+        trainingapp()
+    elif option == "Reset board":
+        reset_board()
 
-                    if not teach_mode:
-                        self.update_square(move.from_square %
-                                        8, 7 - (move.from_square // 8))
-                        self.update_square(move.to_square %
-                                        8, 7 - (move.to_square // 8))
+def reset_board():
+    global starting_order
+    starting_order = {(0, 0): pygame.image.load(br.image), (1, 0): pygame.image.load(bkn.image),
+                      (2, 0): pygame.image.load(bb.image), (3, 0): pygame.image.load(bk.image),
+                      (4, 0): pygame.image.load(bq.image), (5, 0): pygame.image.load(bb.image),
+                      (6, 0): pygame.image.load(bkn.image), (7, 0): pygame.image.load(br.image),
+                      (0, 1): pygame.image.load(bp.image), (1, 1): pygame.image.load(bp.image),
+                      (2, 1): pygame.image.load(bp.image), (3, 1): pygame.image.load(bp.image),
+                      (4, 1): pygame.image.load(bp.image), (5, 1): pygame.image.load(bp.image),
+                      (6, 1): pygame.image.load(bp.image), (7, 1): pygame.image.load(bp.image),
 
-                    if self.board.is_capture(move):
-                        self.capture_sound.play()
-                        print("Playing capture sound")
+                      (0, 2): None, (1, 2): None, (2, 2): None, (3, 2): None,
+                      (4, 2): None, (5, 2): None, (6, 2): None, (7, 2): None,
+                      (0, 3): None, (1, 3): None, (2, 3): None, (3, 3): None,
+                      (4, 3): None, (5, 3): None, (6, 3): None, (7, 3): None,
+                      (0, 4): None, (1, 4): None, (2, 4): None, (3, 4): None,
+                      (4, 4): None, (5, 4): None, (6, 4): None, (7, 4): None,
+                      (0, 5): None, (1, 5): None, (2, 5): None, (3, 5): None,
+                      (4, 5): None, (5, 5): None, (6, 5): None, (7, 5): None,
 
-            if self.board.turn == chess.BLACK:
-                ai_move = self.ai.choose_move(self.board)
-                self.board.push(ai_move)
-                self.update_square(ai_move.from_square %
-                                8, 7 - (ai_move.from_square // 8))
-                self.update_square(ai_move.to_square %
-                                8, 7 - (ai_move.to_square // 8))    
+                      (0, 6): pygame.image.load(wp.image), (1, 6): pygame.image.load(wp.image),
+                      (2, 6): pygame.image.load(wp.image), (3, 6): pygame.image.load(wp.image),
+                      (4, 6): pygame.image.load(wp.image), (5, 6): pygame.image.load(wp.image),
+                      (6, 6): pygame.image.load(wp.image), (7, 6): pygame.image.load(wp.image),
+                      (0, 7): pygame.image.load(wr.image), (1, 7): pygame.image.load(wkn.image),
+                      (2, 7): pygame.image.load(wb.image), (3, 7): pygame.image.load(wk.image),
+                      (4, 7): pygame.image.load(wq.image), (5, 7): pygame.image.load(wb.image),
+                      (6, 7): pygame.image.load(wkn.image), (7, 7): pygame.image.load(wr.image), }
 
-        for i, move in enumerate(moves):
-            self.root.after(i * move_delay, lambda m=move: update_moves([m]))
+    print("Chess board has been reset.")
 
-    def start_ai_vs_stockfish(self):
-        self.chess_control_instance.start_ai_vs_stockfish()
+def convert_to_readable(board):
+    output = ''
 
-    def ai_vs_ai(self):
-        self.chess_control_instance.ai_vs_ai()
+    for i in board:
+        for j in i:
+            try:
+                output += j.team + j.type + ', '
+            except:
+                output += j + ', '
+        output += '\n'
+    return output
 
-    def update_square(self, col, row):
-        color = 'brown' if (row + col) % 2 == 0 else 'white'
-        position = chess.square(col, 7 - row)
-        piece = self.board.piece_at(position)
-        frame = self.root.grid_slaves(row=row, column=col)[0]
-
-        for widget in frame.winfo_children():
-            widget.destroy()
-
-        if piece:
-            image = self.get_piece_image(piece)
-            label = tk.Label(frame, image=image, bg=color,
-                            width=60, height=60, anchor="center")
-            label.image = image
-            label.pack(fill=tk.BOTH, expand=True)
-            label.bind("<Button-1>", lambda event, row=row,
-                    col=col: self.on_square_click(row, col))
-        else:
-            frame.config(bg=color)
-
-    def update_score_display(self):
-        try:
-            self.score_label.destroy()
-        except AttributeError:
-            pass
-        score_text = f"White: {self.scores['white']} | Black: {self.scores['black']} | Draw: {self.scores['draw']}"
-        self.score_label = tk.Label(self.menu_frame, text=score_text)
-        self.score_label.pack(pady=20)
-
-    def move_piece(self, row, col, move):
-        if move in self.board.legal_moves:
-            self.board.push(move)
-            self.selected_piece = None
-            self.selected_label.config(
-                bg=('brown' if (row + col) % 2 == 0 else 'white'))
-            self.clear_highlights()
-            self.update_square(move.from_square % 8, 7 - (move.from_square // 8))
-            self.update_square(move.to_square % 8, 7 - (move.to_square // 8))
-
-            if move.promotion:
-                self.update_square(move.to_square % 8, 7 - (move.to_square // 8))
-
-            if move in [m for m in self.board.legal_moves if m.uci().endswith('e.p.')]:
-                ep_rank = 5 if self.board.turn == chess.WHITE else 2
-                ep_square = chess.square(move.to_square % 8, ep_rank)
-                self.update_square(ep_square % 8, 7 - (ep_square // 8))
-
-            print("About to play move sound")
-            self.move_sound.play()
-            print("Move sound played")
-
-            if not self.board.is_game_over() and self.board.turn == chess.BLACK:
-                ai_move = self.ai.make_ai_move(self.board)
-                self.board.push(ai_move)
-                self.update_square(ai_move.from_square %
-                                8, 7 - (ai_move.from_square // 8))
-                self.update_square(ai_move.to_square %
-                                8, 7 - (ai_move.to_square // 8))
-
-        else:
-            self.update_square(col, row, move.from_square % 8, 7 - (move.from_square // 8))
-            self.update_square(col, row, move.to_square % 8, 7 - (move.to_square // 8))
-
-            self.selected_label.config(
-                bg=('brown' if (row + col) % 2 == 0 else 'white'))
-            self.selected_piece = None
-
-    def on_square_click(self, row, col):
-        position = chess.square(col, 7 - row)
-        piece = self.board.piece_at(position)
-        print(f"Clicked on {piece} at ({row}, {col})")
-
-        if self.selected_piece:
-            move = chess.Move(self.selected_piece, position)
-            if move in self.board.legal_moves:
-                self.move_piece(row, col, move)
-
-                if not self.board.is_game_over() and self.board.turn == chess.BLACK:
-                    ai_move = self.ai.make_ai_move(self.board)
-                    self.board.push(ai_move)
-                    self.update_square(ai_move.from_square %
-                                       8, 7 - (ai_move.from_square // 8))
-                    self.update_square(ai_move.to_square %
-                                       8, 7 - (ai_move.to_square // 8))
+def deselect():
+    for row in range(len(board)):
+        for column in range(len(board[0])):
+            if board[row][column] == 'x ':
+                board[row][column] = '  '
             else:
-                self.selected_label.config(
-                    bg=('brown' if (row + col) % 2 == 0 else 'white'))
-                self.selected_piece = None
-
-        elif piece and piece.color == chess.WHITE:
-            self.clear_highlights()
-            if self.selected_piece == position:
-                self.selected_label.config(
-                    bg=('brown' if (row + col) % 2 == 0 else 'white'))
-                self.selected_piece = None
-                self.highlight_legal_moves(position)
-            else:
-                self.selected_piece = position
-                clicked_frame = self.root.grid_slaves(row=row, column=col)[0]
-                self.selected_label = clicked_frame.winfo_children()[0]
-                self.selected_label.config(bg='yellow')
-
-    def run_stockfish_moves(self, stockfish):
-        try:
-            def make_ai_move():
-                print("Making AI move...")
-                if self.board.turn == chess.WHITE:
-                    move = self.ai.choose_move(self.board)
-                else:
-                    result = stockfish.play(
-                        self.board, chess.engine.Limit(time=2.0))
-                    move = result.move
-
-                self.board.push(move)
-                self.update_stockfish_gui()
-
-                if not self.board.is_game_over():
-                    self.root.after(1000, make_stockfish_move)
-                else:
-                    print("Game over!")
-
-            def make_stockfish_move():
                 try:
-                    print("Making Stockfish move...")
-                    if self.board.turn == chess.BLACK:
-                        result = stockfish.play(
-                            self.board, chess.engine.Limit(time=2.0))
-                        move = result.move
-                        self.board.push(move)
-                        self.update_stockfish_gui()
-                except chess.engine.EngineTerminatedError as e:
-                    print(f"Stockfish engine terminated: {e}")
-                    return
+                    board[row][column].killable = False
+                except:
+                    pass
+    return convert_to_readable(board)
 
-                if not self.board.is_game_over():
-                    self.root.after(1000, make_ai_move)
+
+def highlight(board):
+    highlighted = []
+    for i in range(len(board)):
+        for j in range(len(board[0])):
+            if board[i][j] == 'x ':
+                highlighted.append((i, j))
+            else:
+                try:
+                    if board[i][j].killable:
+                        highlighted.append((i, j))
+                except:
+                    pass
+    return highlighted
+
+
+def check_team(moves, index):
+    row, col = index
+    if moves % 2 == 0:
+        if board[row][col].team == 'w':
+            return True
+    else:
+        if board[row][col].team == 'b':
+            return True
+
+
+def select_moves(piece, index, moves):
+    reset_legal_moves()
+
+    if check_team(moves, index):
+        if piece.type == 'p':
+            if piece.team == 'b':
+                pawn_moves_b(index)
+            else:
+                pawn_moves_w(index)
+
+        if piece.type == 'k':
+            king_moves(index)
+
+        if piece.type == 'r':
+            rook_moves(index)
+
+        if piece.type == 'b':
+            bishop_moves(index)
+
+        if piece.type == 'q':
+            queen_moves(index)
+
+        if piece.type == 'kn':
+            knight_moves(index)
+
+    return highlight(board)
+
+def pawn_moves_b(index):
+    if index[0] == 1:
+        if board[index[0] + 2][index[1]] == '  ' and board[index[0] + 1][index[1]] == '  ':
+            board[index[0] + 2][index[1]] = 'x '
+    bottom3 = [[index[0] + 1, index[1] + i] for i in range(-1, 2)]
+
+    for positions in bottom3:
+        if on_board(positions):
+            if bottom3.index(positions) % 2 == 0:
+                try:
+                    if board[positions[0]][positions[1]].team != 'b':
+                        board[positions[0]][positions[1]].killable = True
+                        legal_moves.append((positions[0], positions[1]))
+                except:
+                    pass
+            else:
+                if board[positions[0]][positions[1]] == '  ':
+                    board[positions[0]][positions[1]] = 'x '
+                    legal_moves.append((positions[0], positions[1]))
+
+
+def pawn_moves_w(index):
+    if index[0] == 6:
+        if board[index[0] - 2][index[1]] == '  ' and board[index[0] - 1][index[1]] == '  ':
+            board[index[0] - 2][index[1]] = 'x '
+    top3 = [[index[0] - 1, index[1] + i] for i in range(-1, 2)]
+
+    for positions in top3:
+        if on_board(positions):
+            if top3.index(positions) % 2 == 0:
+                try:
+                    if board[positions[0]][positions[1]].team != 'w':
+                        board[positions[0]][positions[1]].killable = True
+                except:
+                    pass
+            else:
+                if board[positions[0]][positions[1]] == '  ':
+                    board[positions[0]][positions[1]] = 'x '
+    return board
+
+def king_moves(index):
+    for y in range(3):
+        for x in range(3):
+            if on_board((index[0] - 1 + y, index[1] - 1 + x)):
+                if board[index[0] - 1 + y][index[1] - 1 + x] == '  ':
+                    board[index[0] - 1 + y][index[1] - 1 + x] = 'x '
                 else:
-                    print("Game over!")
+                    if board[index[0] - 1 + y][index[1] - 1 + x].team != board[index[0]][index[1]].team:
+                        board[index[0] - 1 + y][index[1] - 1 + x].killable = True
+    return board
 
-            make_ai_move()
+def rook_moves(index):
+    cross = [[[index[0] + i, index[1]] for i in range(1, 8 - index[0])],
+             [[index[0] - i, index[1]] for i in range(1, index[0] + 1)],
+             [[index[0], index[1] + i] for i in range(1, 8 - index[1])],
+             [[index[0], index[1] - i] for i in range(1, index[1] + 1)]]
 
-        except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
+    for direction in cross:
+        for positions in direction:
+            if on_board(positions):
+                if board[positions[0]][positions[1]] == '  ':
+                    board[positions[0]][positions[1]] = 'x '
+                else:
+                    if board[positions[0]][positions[1]].team != board[index[0]][index[1]].team:
+                        board[positions[0]][positions[1]].killable = True
+                    break
+    return board
+def bishop_moves(index):
+    diagonals = [[[index[0] + i, index[1] + i] for i in range(1, 8)],
+                 [[index[0] + i, index[1] - i] for i in range(1, 8)],
+                 [[index[0] - i, index[1] + i] for i in range(1, 8)],
+                 [[index[0] - i, index[1] - i] for i in range(1, 8)]]
 
-    def update_stockfish_gui(self):
-        self.update_square(
-            self.board.move_stack[-1].from_square % 8, 7 - (self.board.move_stack[-1].from_square // 8))
-        self.update_square(
-            self.board.move_stack[-1].to_square % 8, 7 - (self.board.move_stack[-1].to_square // 8))
+    for direction in diagonals:
+        for positions in direction:
+            if on_board(positions):
+                if board[positions[0]][positions[1]] == '  ':
+                    board[positions[0]][positions[1]] = 'x '
+                else:
+                    if board[positions[0]][positions[1]].team != board[index[0]][index[1]].team:
+                        board[positions[0]][positions[1]].killable = True
+                    break
+    return board
 
-    def update_gui_after_stockfish_moves(self):
-        self.root.after(100, self.perform_update_gui_after_stockfish_moves)
+def queen_moves(index):
+    board = rook_moves(index)
+    board = bishop_moves(index)
+    return board
 
-
-    def perform_update_gui_after_stockfish_moves(self):
-        self.reset_game()
-        self.root.update()
-        self.root.update_idletasks()
-
-    def reset_game(self):
-        result = self.board.result()
-
-        if result == "1-0":
-            game_outcome = 'win'
-            self.scores['white'] += 1
-        elif result == "0-1":
-            game_outcome = 'loss'
-            self.scores['black'] += 1
-        else:
-            game_outcome = 'draw'
-            self.scores['draw'] += 1
-
-        self.update_score_display()
-
-        game_data = {
-            'result': game_outcome,
-            'moves': [(move.uci(), self.board.piece_at(move.from_square).piece_type)
-                    if self.board.piece_at(move.from_square)
-                    else (move.uci(), None)
-                    for move in self.board.move_stack]
-        }
-
-        self.ai_instance.save_game_data(game_data)
-        self.board.reset()
-        self.draw_board()
-
-    def highlight_square(self, row, col):
-        frame = self.root.grid_slaves(row=row, column=col)[0]
-        color = 'gray' if (row + col) % 2 == 0 else 'lightgray'
-        frame.config(bg=color)
-
-
-    def clear_highlights(self):
-        for row in range(8):
-            for col in range(8):
-                self.update_square(col, row)
-
-    def highlight_legal_moves(self, position):
-        self.clear_highlights()
-        for move in self.board.legal_moves:
-            if move.from_square == position:
-                row, col = 7 - (move.to_square // 8), move.to_square % 8
-                self.highlight_square(row, col)
-
-    def batch_update_ai_moves(self, moves, teach_mode=False):
-        for move in moves:
-            if move in self.board.legal_moves:
-                self.board.push(move)
-                print(f"Making AI move: {move.uci()}")
-
-                if not teach_mode:
-                    self.update_square(move.from_square %
-                                    8, 7 - (move.from_square // 8))
-                    self.update_square(move.to_square %
-                                    8, 7 - (move.to_square // 8))
-
-        self.root.after(self.teaching_speed_limit if self.teaching else self.ai_delay,
-                        lambda: self.ai_vs_ai(teach_mode=teach_mode))
+def knight_moves(index):
+    for i in range(-2, 3):
+        for j in range(-2, 3):
+            if i ** 2 + j ** 2 == 5:
+                if on_board((index[0] + i, index[1] + j)):
+                    if board[index[0] + i][index[1] + j] == '  ':
+                        board[index[0] + i][index[1] + j] = 'x '
+                    else:
+                        if board[index[0] + i][index[1] + j].team != board[index[0]][index[1]].team:
+                            board[index[0] + i][index[1] + j].killable = True
+    return board
 
 
-    def reset_game_and_continue_ai(self):
-        self.reset_game()
-        self.ai_vs_ai()
-    
-    def start_teaching_mode(self):
+legal_moves = []
 
-        python_path = sys.executable
 
-        script_path = os.path.join(
-            os.path.dirname(__file__), 'chesstraining.py')
+def reset_legal_moves():
+    global legal_moves
+    legal_moves = []
 
-        subprocess.Popen([python_path, script_path])
-        sys.exit()
+pygame.init()
+pygame.display.set_caption("Chess")
+WHITE = (255, 255, 255)
+GREY = (128, 128, 128)
+YELLOW = (204, 204, 0)
+BLUE = (50, 255, 255)
+BLACK = (0, 0, 0)
+
+
+class Node:
+    def __init__(self, row, col, width):
+        self.row = row
+        self.col = col
+        self.x = int(row * width)
+        self.y = int(col * width)
+        self.colour = WHITE
+        self.occupied = None
         
-    def human_vs_ai(self):
-        self.teaching = False
-        self.ai_mode = False
-        try:
-            self.teaching_window.destroy()
-        except tk.TclError:
-            pass
-        self.reset_game()
 
-    def save_game_data(self, game_data):
-        self.ai.save_game_data(game_data)
+    def draw(self, WIN):
+        pygame.draw.rect(WIN, self.colour,
+                         (self.x, self.y, WIDTH // 8, WIDTH // 8))
+
+    def setup(self, WIN):
+        if starting_order[(self.row, self.col)]:
+            if starting_order[(self.row, self.col)] == None:
+                pass
+            else:
+                scale_factor = 0.8
+                scaled_width = int(WIDTH // 8 * scale_factor)
+                scaled_height = int(WIDTH // 8 * scale_factor)
+                scaled_image = pygame.transform.scale(
+                    starting_order[(self.row, self.col)], (scaled_width, scaled_height))
+
+                x_offset = (WIDTH // 8 - scaled_width) // 2
+                y_offset = (WIDTH // 8 - scaled_height) // 2
+
+                WIN.blit(scaled_image, (self.x + x_offset, self.y + y_offset))
 
 
-    def load_game_data(self):
-        self.ai.load_game_data()
+def show_context_menu(options, pos):
+    menu = tkinter.Menu(root, tearoff=0)
+    for option in options:
+        menu.add_command(
+            label=option, command=lambda: print("Selected:", option))
+    menu.post(pos[0] + root.winfo_rootx(), pos[1] + root.winfo_rooty())
+
+def make_grid(rows, width):
+    grid = []
+    gap = WIDTH // rows
+    print(gap)
+    for i in range(rows):
+        grid.append([])
+        for j in range(rows):
+            node = Node(j, i, gap)
+            grid[i].append(node)
+            if (i+j) % 2 == 1:
+                grid[i][j].colour = GREY
+    return grid
+
+def update_display(win, grid, rows, width):
+    for row in grid:
+        for spot in row:
+            spot.draw(win)
+            spot.setup(win)
+    pygame.display.update()
+
+def Find_Node(pos, WIDTH):
+    interval = WIDTH / 8
+    y, x = pos
+    rows = y // interval
+    columns = x // interval
+    return int(rows), int(columns)
+
+def display_potential_moves(positions, grid):
+    for i in positions:
+        x, y = i
+        grid[x][y].colour = BLUE
+
+def Do_Move(OriginalPos, FinalPosition, WIN):
+    starting_order[FinalPosition] = starting_order[OriginalPos]
+    starting_order[OriginalPos] = None
 
 
-def start_program():
-    root = tk.Tk()
-    root.title("Chess App")
-    ai_instance = AI()
-    app = chessapp(root, ai_instance)
-    root.after(100, app.start_ai_vs_stockfish)
-    root.mainloop()
-    root.update_idletasks()
-    root.update()
+def remove_highlight(grid):
+    for i in range(len(grid)):
+        for j in range(len(grid[0])):
+            if (i+j) % 2 == 0:
+                grid[i][j].colour = WHITE
+            else:
+                grid[i][j].colour = GREY
+    return grid
+
+create_board(board)
+
+
+def main(WIN, WIDTH):
+    moves = 0
+    selected = False
+    piece_to_move = []
+    grid = make_grid(8, WINDOW_WIDTH)
+    while True:
+        pygame.time.delay(50)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            
+            if moves % 2 == 1:
+                legal_moves = list(board.legal_moves)
+                ai_move = ai.choose_move(board, legal_moves)
+                board.push(ai_move)
+                print(convert_to_readable(board))
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                pos = pygame.mouse.get_pos()
+                y, x = Find_Node(pos, WIDTH)
+                if event.button == 1:
+                    if not selected:
+                        try:
+                            possible = select_moves(
+                                (board[x][y]), (x, y), moves)
+                            for positions in possible:
+                                row, col = positions
+                                grid[row][col].colour = BLUE
+                            piece_to_move = x, y
+                            selected = True
+                        except:
+                            piece_to_move = []
+                            print('Can\'t select')
+                    else:
+                        try:
+                            if board[x][y].killable == True:
+                                row, col = piece_to_move
+                                board[x][y] = board[row][col]
+                                board[row][col] = '  '
+                                deselect()
+                                remove_highlight(grid)
+                                Do_Move((col, row), (y, x), WIN)
+                                moves += 1
+                                print(convert_to_readable(board))
+                            else:
+                                deselect()
+                                remove_highlight(grid)
+                                selected = False
+                                print("Deselected")
+                        except:
+                            if board[x][y] == 'x ':
+                                row, col = piece_to_move
+                                board[x][y] = board[row][col]
+                                board[row][col] = '  '
+                                deselect()
+                                remove_highlight(grid)
+                                Do_Move((col, row), (y, x), WIN)
+                                moves += 1
+                                print(convert_to_readable(board))
+                            else:
+                                deselect()
+                                remove_highlight(grid)
+                                selected = False
+                                print("Invalid move")
+                        selected = False
+
+                #elif event.button == 3:
+                    #show_context_menu(options_list, pos)
+
+            update_display(WIN, grid, 8, WIDTH)
+
 
 if __name__ == "__main__":
-    start_program()
+    main(WIN, WINDOW_WIDTH)
+    root.mainloop()

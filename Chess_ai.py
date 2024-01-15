@@ -6,7 +6,7 @@ import hashlib
 import os
 import torch
 import numpy as np
-
+import chess
 
 class AI:
     PIECE_VALUES = {
@@ -19,8 +19,8 @@ class AI:
     }
 
     CENTRAL_SQUARES = [chess.D4, chess.E4, chess.D5, chess.E5]
-
     def __init__(self, num_games=1000, gamedata_folder='gamedata', batch_size=64, epsilon=0.1):
+        self.board = chess.Board()
         self.q_table = {}
         self.alpha = 0.1
         self.gamma = 0.9
@@ -59,10 +59,11 @@ class AI:
 
     def make_ai_move(self, board):
         return self.choose_move(board)
-
-    def choose_move(self, board):
-        state = board.fen()
-        legal_moves = list(board.legal_moves)
+    
+    def choose_move(self, board, legal_moves):
+        if not legal_moves:
+            print("No legal moves available. AI cannot make a move.")
+            return None
 
         if random.uniform(0, 1) < self.epsilon:
             chosen_move = random.choice(legal_moves)
@@ -74,8 +75,8 @@ class AI:
             q_values = {move: self.q_value(board, move)
                         for move in legal_moves}
             max_q_value = max(q_values.values(), default=0)
-            best_moves = [move for move,
-                        q_value in q_values.items() if q_value == max_q_value]
+            best_moves = [move for move, q_value in q_values.items()
+                          if q_value == max_q_value]
             chosen_move = random.choice(best_moves)
             print(f"AI chose the best move from history: {chosen_move.uci()}")
             return chosen_move
@@ -83,7 +84,7 @@ class AI:
         chosen_move = random.choice(legal_moves)
         print(f"AI chose a random move: {chosen_move.uci()}")
         return chosen_move
-
+    
     def evaluate_position(self, board):
         evaluation = torch.tensor(0.0)
 
