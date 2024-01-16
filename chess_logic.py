@@ -9,8 +9,7 @@ def play_game(self, ai_instance, game_num):
         if move in board.legal_moves:
             board.push(move)
         else:
-            print(f"Illegal move attempted by AI in game {
-                    game_num}: {move.uci()}")
+            print (f"Illegal move attempted by AI in game {game_num}: {move.uci()}")
             break
 
     game_outcome = 'win' if board.result(
@@ -41,8 +40,7 @@ def train_ai_parallel(self, ai_instance, num_games, num_processes):
             try:
                 game_data = future.result()
                 game_data_list.append(game_data)
-                print(f"Game {game_num} completed with outcome: {
-                        game_data['result']}")
+                print(f"Game {game_num} completed with outcome: {game_data['result']}")
             except Exception as e:
                 print(f"Error in game {game_num}: {e}")
 

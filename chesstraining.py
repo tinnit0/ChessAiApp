@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 from chess_logic import train_ai_parallel
-from chess_ai import AI
+from Chess_ai import AI
 from queue import Queue
 
 

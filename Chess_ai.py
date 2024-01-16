@@ -40,9 +40,7 @@ class AI:
             print("No existing Q-table found. Creating a new one.")
             self.save_q_table(q_table_path)
 
-        self.load_q_table(os.path.join(
-            'ChessAiApp', 'gamedata', 'q_table.pkl'))
-
+        self.load_q_table('ChessAiApp\\gamedata\\q_table.pkl')
 
     def board_hash(self, fen_str):
         hash_object = hashlib.sha256(fen_str.encode())
@@ -60,10 +58,8 @@ class AI:
     def make_ai_move(self, board):
         return self.choose_move(board)
     
-    def choose_move(self, board, legal_moves):
-        if not legal_moves:
-            print("No legal moves available. AI cannot make a move.")
-            return None
+    def choose_move(self, board):
+        legal_moves = list(board.legal_moves)
 
         if random.uniform(0, 1) < self.epsilon:
             chosen_move = random.choice(legal_moves)
@@ -103,6 +99,13 @@ class AI:
                     evaluation += torch.tensor(5.0)
                 elif piece.piece_type == chess.KNIGHT:
                     evaluation += torch.tensor(10.0)
+
+        for color in [chess.WHITE, chess.BLACK]:
+            for square in board.pieces(color, chess.PAWN):
+                evaluation += torch.tensor(5.0) if color == chess.WHITE else torch.tensor(-5.0)
+
+            for square in board.pieces(color, chess.KNIGHT):
+                evaluation += torch.tensor(10.0) if color == chess.WHITE else torch.tensor(-10.0)
 
             evaluation += torch.sum(torch.tensor(self.PIECE_VALUES[piece.piece_type]) * (
                 torch.tensor(1) if piece.color == chess.WHITE else torch.tensor(-1)) for piece in board.pieces)
