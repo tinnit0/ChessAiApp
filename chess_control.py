@@ -18,17 +18,13 @@ class chess_control:
         self.stockfish_queue = Queue()
 
     def handle_option_selection(self, option):
-        global board, player_turn, running
-        if option == "Player vs AI" or option == "AI vs Stockfish":
-            draw_chessboard()
-            player_turn = True
-            if option == "AI vs Stockfish":
-                self.start_ai_vs_stockfish()
-        elif option == "Training":
+        global player_turn, running
+        if option == "Training":
             self.launch_training_app()
         elif option == "Reset Board":
             draw_chessboard()
-            player_turn = True
+            subprocess.Popen(["python", "ChessAiApp\\chessapp.py"])
+            pygame.quit()
 
     def launch_training_app(self):
         subprocess.Popen(["python", "ChessAiApp\\chesstraining.py"])
@@ -58,30 +54,35 @@ class chess_control:
             stockfish = chess.engine.SimpleEngine.popen_uci(stockfish_executable)
 
             self.board = chess.Board()
+            global player_turn
             player_turn = True
-
 
             stockfish_thread = threading.Thread(target=self.run_stockfish_moves, args=(stockfish,))
             stockfish_thread.start()
 
-            while not self.board.is_game_over():
-                if player_turn:
-                    result = stockfish.play(self.board, chess.engine.Limit(time=1.0))
-                    if result:
-                        self.board.push(result.move)
-                        self.stockfish_queue.get()
-                    else:
-                        break
-                else:
-                    ai_move = self.chess_ai.choose_move(self.board)
-                    self.board.push(ai_move)
+            self.chess_vs_stockfish_main_loop(stockfish)
 
-                player_turn = not player_turn  # Switch turns
-
-                draw_chessboard()
             stockfish_thread.join()
-             
+
         except FileNotFoundError as e:
             messagebox.showerror("Error", str(e))
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def chess_vs_stockfish_main_loop(self, stockfish):
+        global player_turn, running
+        while not self.board.is_game_over():
+            if player_turn:
+                result = stockfish.play(self.board, chess.engine.Limit(time=1.0))
+                if result:
+                    self.board.push(result.move)
+                    self.stockfish_queue.get()
+                else:
+                    break
+            else:
+                ai_move = self.chess_ai.choose_move(self.board)
+                self.board.push(ai_move)
+
+            player_turn = not player_turn  # Switch turns
+
+            draw_chessboard()

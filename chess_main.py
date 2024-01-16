@@ -1,6 +1,6 @@
 import tkinter as tk
 from chessapp import chessapp
-from chess_ai import AI 
+from Chess_ai import AI 
 import tkinter
 
 def show_startup_window():

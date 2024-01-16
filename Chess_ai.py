@@ -19,7 +19,7 @@ class AI:
     }
 
     CENTRAL_SQUARES = [chess.D4, chess.E4, chess.D5, chess.E5]
-    def __init__(self, num_games=1000, gamedata_folder='gamedata', batch_size=64, epsilon=0.1):
+    def __init__(self, num_games=1000, gamedata_folder='ChessAiApp\\gamedata', batch_size=64, epsilon=0.1, color=chess.WHITE):
         self.board = chess.Board()
         self.q_table = {}
         self.alpha = 0.1
@@ -29,6 +29,7 @@ class AI:
         self.gamedata_folder = gamedata_folder
         self.batch_size = batch_size
         self.batch_data = []
+        self.color = color
 
         q_table_path = os.path.join(self.gamedata_folder, 'q_table.pkl')
 
@@ -58,12 +59,13 @@ class AI:
     def make_ai_move(self, board):
         return self.choose_move(board)
     
-    def choose_move(self, board):
+    def choose_move(self, board, training_mode=False):
         legal_moves = list(board.legal_moves)
 
         if random.uniform(0, 1) < self.epsilon:
             chosen_move = random.choice(legal_moves)
-            print(f"AI chose a random move: {chosen_move.uci()}")
+            if training_mode:
+                print(f"AI chose a random move during training: {chosen_move.uci()}")
             return chosen_move
 
         history_q_values = [self.q_value(board, move) for move in legal_moves]
@@ -72,13 +74,15 @@ class AI:
                         for move in legal_moves}
             max_q_value = max(q_values.values(), default=0)
             best_moves = [move for move, q_value in q_values.items()
-                          if q_value == max_q_value]
+                        if q_value == max_q_value]
             chosen_move = random.choice(best_moves)
-            print(f"AI chose the best move from history: {chosen_move.uci()}")
+            if training_mode:
+                print(f"AI chose the best move from history during training: {chosen_move.uci()}")
             return chosen_move
 
         chosen_move = random.choice(legal_moves)
-        print(f"AI chose a random move: {chosen_move.uci()}")
+        if training_mode:
+            print(f"AI chose a random move during training: {chosen_move.uci()}")
         return chosen_move
     
     def evaluate_position(self, board):
@@ -86,11 +90,11 @@ class AI:
 
         for move in board.legal_moves:
             if board.is_capture(move) and not board.gives_check(move):
-                board.push(move)
-                if not board.is_attacked_by(not board.turn, move.to_square):
-                    evaluation += self.PIECE_VALUES[board.piece_at(
+                new_board = board.copy()
+                new_board.push(move)
+                if not new_board.is_attacked_by(not new_board.turn, move.to_square):
+                    evaluation += self.PIECE_VALUES[new_board.piece_at(
                         move.to_square).piece_type]
-                board.pop()
 
         for square in self.CENTRAL_SQUARES:
             piece = board.piece_at(square)
@@ -115,7 +119,7 @@ class AI:
         evaluation += -50 * torch.tensor(
             white_king_square in self.CENTRAL_SQUARES) + 50 * torch.tensor(black_king_square in self.CENTRAL_SQUARES)
 
-        return evaluation.item()
+        return evaluation
 
     def learn_from_data(self, board, move, new_board):
         state = board.fen()

@@ -4,9 +4,17 @@ import time
 from Chess_ai import AI
 from chess_control import chess_control
 from Chess_board import draw_chessboard
-from chess import Move, QUEEN
+from chess import QUEEN
+import pygame.mixer
+import random
 
 pygame.init()
+pygame.mixer.init()  
+capture_sound = pygame.mixer.Sound('ChessAiApp/sounds/capture.mp3')
+castle_sound = pygame.mixer.Sound('ChessAiApp/sounds/castle.mp3')
+movecheck_sound = pygame.mixer.Sound('ChessAiApp/sounds/move-check.mp3')
+moveself_sound = pygame.mixer.Sound('ChessAiApp/sounds/move-self.mp3')
+promote_sound = pygame.mixer.Sound('ChessAiApp/sounds/promote.mp3')
 
 WIDTH, HEIGHT = 600, 600
 SQUARE_SIZE = WIDTH // 8
@@ -15,6 +23,7 @@ BROWN = (244, 164, 96)
 HIGHLIGHT_COLOR = (0, 255, 0, 100)
 chess_ai = AI()
 board = chess.Board()
+current_player_color = chess.WHITE
 
 pieces = {
     'r': pygame.image.load('ChessAiApp/icons/rB.png'),
@@ -47,15 +56,42 @@ menu_font = pygame.font.Font(None, 30)
 options_text_list = ["2 Player", "Player vs AI", "AI vs Stockfish", "Training", "Reset Board"]
 option_rects = [pygame.Rect(options_menu.left + 10, options_menu.top + 10 + i * 40, options_menu.width - 20, 30) for i in range(len(options_text_list))]
 
+def play_sound(sound):
+    sound.play()
+    
+def play_capture_sound():
+    capture_sound.play()
+
+def play_castle_sound():
+    castle_sound.play()
+
+def play_movecheck_sound():
+    movecheck_sound.play()
+
+def play_moveself_sound():
+    moveself_sound.play()
+
+def play_promote_sound():
+    promote_sound.play()
 
 def handle_promotion(move):
-    if chess.square_rank(move.to_square) in [0, 7] and board.piece_at(move.to_square).piece_type == chess.PAWN:
-        promotion_piece = QUEEN
-        promotion_move = chess.Move(move.from_square, move.to_square, promotion_piece)
-        board.push(promotion_move)
+    global player_turn
+    if chess.square_rank(move.to_square) in [0, 7]:
+        piece_at_square = board.piece_at(move.to_square)
+        if piece_at_square is not None and piece_at_square.piece_type == chess.PAWN:
+            if chess.square_rank(move.to_square) == 0:
+                promotion_piece = input("Choose promotion piece (Q, R, B, N): ").upper()
+                if promotion_piece in ['Q', 'R', 'B', 'N']:
+                    promotion_piece = chess.Piece.from_symbol(promotion_piece)
+                    promotion_move = chess.Move(move.from_square, move.to_square, promotion_piece)
+                    board.push(promotion_move)
+            else:
+                promotion_piece = chess.QUEEN
+                promotion_move = chess.Move(move.from_square, move.to_square, promotion_piece)
+                board.push(promotion_move)
 
 def draw_pieces():
-   for row in range(8):
+    for row in range(8):
         for col in range(8):
             piece = board.piece_at(chess.square(col, 7 - row))
             if piece is not None:
@@ -75,10 +111,10 @@ def draw_legal_moves(square):
             pygame.draw.rect(screen, HIGHLIGHT_COLOR, (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE), 5)
 
 def ai_make_move(self):
+    global player_turn
     if not self.player_turn:
         move = self.chess_ai.choose_move(self.board)
         print(f"AI chose a move: {move.uci()}")
-        # Add a delay of 1 second before making the move
         time.sleep(1)
         self.board.push(move)
         self.player_turn = True
@@ -98,21 +134,11 @@ def handle_options_click(pos):
             options_menu_open = False
 
     def handle_option_selection(self, option):
-        global board, player_turn
-        if option == "Player vs AI" or option == "AI vs Stockfish":
-            self.reset_board()
-            player_turn = True
-            if option == "AI vs Stockfish":
-                self.start_ai_vs_stockfish()
-        elif option == "Training":
-            # rederect naar chesstraining
-            pass
-        elif option == "Reset Board":
-            self.reset_board()
-            player_turn = True
+        pass
             
 chess_control_instance = chess_control(chess_control)
 running = True
+player_turn = random.choice([True, False])
 player_turn = True
 options_menu_open = False
 
@@ -125,17 +151,43 @@ while running:
                 options_menu_open = not options_menu_open
             elif options_menu_open:
                 handle_options_click(event.pos)
+            elif options_button.collidepoint(event.pos):
+                invert_colors = not invert_colors
             elif player_turn:
-                col = event.pos[0] // SQUARE_SIZE
-                row = 7 - event.pos[1] // SQUARE_SIZE
-                square = chess.square(col, row)
-                piece = board.piece_at(square)
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    col = event.pos[0] // SQUARE_SIZE
+                    row = 7 - event.pos[1] // SQUARE_SIZE
+                    square = chess.square(col, row)
+                    piece = board.piece_at(square)
+                
 
-                if not selecting:
-                    if piece is not None and piece.color == chess.WHITE:
-                        selecting = True
-                        selected_square = square
-                        legal_moves = set([move.to_square for move in board.legal_moves if move.from_square == selected_square])
+                    if not selecting:
+                        if current_player_color == chess.WHITE:
+                            selecting = True
+                            selected_square = square
+                            legal_moves = set([move.to_square for move in board.legal_moves if move.from_square == selected_square])
+                    else:
+                        if square in legal_moves:
+                            move = chess.Move(selected_square, square)
+                            if move in board.legal_moves:
+                                if board.is_capture(move):
+                                    play_sound(capture_sound)
+                                elif board.is_castling(move):
+                                    play_sound(castle_sound)
+                                elif board.is_check():
+                                    play_sound(movecheck_sound)
+                                else:
+                                    play_sound(moveself_sound)
+                                handle_promotion(move)
+                                board.push(move)
+                                player_turn = False
+                                selecting = False
+                                selected_square = None
+                                legal_moves = set()
+                            else:
+                                selecting = False
+                                selected_square = None
+                                legal_moves = set()
                 else:
                     if square in legal_moves:
                         move = chess.Move(selected_square, square)
@@ -146,7 +198,10 @@ while running:
                             selecting = False
                             selected_square = None
                             legal_moves = set()
-
+                    else:
+                        selecting = False
+                        selected_square = None
+                        legal_moves = set()
     draw_chessboard()
     draw_pieces()
     if selecting:
@@ -159,10 +214,19 @@ while running:
         draw_options_menu()
 
     pygame.display.flip()
-
     if not player_turn and not board.is_game_over() and not options_menu_open:
+        time.sleep(0.5)
         ai_move = chess_ai.make_ai_move(board)
+        captured_piece = board.piece_at(ai_move.to_square)
+        if captured_piece:
+            play_sound(capture_sound)
+        elif board.is_castling(ai_move):
+            play_sound(castle_sound)
+        elif board.is_check():
+            play_sound(movecheck_sound)
+        else:
+            play_sound(moveself_sound)
         board.push(ai_move)
-        player_turn = True
+        player_turn = True if current_player_color == chess.WHITE else False
 
 pygame.quit()

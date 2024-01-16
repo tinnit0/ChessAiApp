@@ -1,11 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox
-from chess_logic import train_ai_parallel
+from chess_logic import Logic
 from Chess_ai import AI
-from queue import Queue
 
-
-class trainingapp:
+class TrainingApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Teaching App")
@@ -14,7 +12,15 @@ class trainingapp:
         self.win_label = None
         self.draw_label = None
         self.loss_label = None
+        self.text_areas = []
+        self.logic_instance = Logic()
+        self.ai_with_knowledge = AI(epsilon=0.2)
+        self.ai_without_knowledge = AI(epsilon=1.0)
+        self.training_mode = False  # Flag to indicate training mode
         self.setup_ui()
+        self.wins = 0
+        self.draws = 0
+        self.losses = 0
 
     def setup_ui(self):
         self.create_label("Number of Games:")
@@ -22,7 +28,8 @@ class trainingapp:
         self.create_label("Number of Processes:")
         self.create_entry(self.num_processes_var)
 
-        self.create_button("Train AI", self.start_training)
+        train_button = tk.Button(self.root, text="Train AI", command=self.start_training)
+        train_button.pack(pady=20)
 
         self.win_label = tk.Label(self.root, text="Wins: 0")
         self.win_label.pack(pady=5)
@@ -44,65 +51,59 @@ class trainingapp:
     def create_button(self, text, command):
         tk.Button(self.root, text=text, command=command).pack(pady=20)
 
-    def start_training(self):
-        try:
-            num_games = int(self.num_games_var.get())
-            num_processes = int(self.num_processes_var.get())
-        except ValueError:
-            messagebox.showerror(
-                "Error", "Invalid input. Please enter valid numbers.")
-            return
-
-        ai_with_knowledge = AI(epsilon=0.2)
-        ai_without_knowledge = AI(epsilon=1.0)
-
-        self.run_training(
-            ai_with_knowledge, ai_without_knowledge, num_games, num_processes)
-
-    def run_training(self, ai_with_knowledge, ai_without_knowledge, num_games, num_processes):
+    def run_training(self, num_games, num_processes):
         wins = 0
         draws = 0
         losses = 0
 
-        while wins + draws + losses < num_games:
-            print(f"Training iteration {wins + draws + losses + 1}/{num_games}")
-            batch_size = min(512, num_games - (wins + draws + losses))
-            print(f"Batch size: {batch_size}")
+        current_iteration = 0
+        max_iterations = num_games // 512  # Adjust as needed
 
-            results_with_knowledge = train_ai_parallel(
-                ai_with_knowledge, batch_size, num_processes)
+        def training_iteration():
+            nonlocal wins, draws, losses, current_iteration
 
-            results_without_knowledge = train_ai_parallel(
-                ai_without_knowledge, batch_size, num_processes)
+            if current_iteration < max_iterations:
+                print(f"Training iteration {current_iteration + 1}/{max_iterations}")
+                batch_size = min(512, num_games - (current_iteration * 512))
+                print(f"Batch size: {batch_size}")
 
-            for result in results_with_knowledge:
-                if result == 'win':
-                    wins += 1
-                elif result == 'draw':
-                    draws += 1
-                elif result == 'loss':
-                    losses += 1
+                results_with_knowledge = self.logic_instance.train_ai_parallel(
+                    self.ai_with_knowledge, batch_size, num_processes
+                )
 
-            for result in results_without_knowledge:
-                if result == 'win':
-                    wins += 1
-                elif result == 'draw':
-                    draws += 1
-                elif result == 'loss':
-                    losses += 1
+                results_without_knowledge = self.logic_instance.train_ai_parallel(
+                    self.ai_without_knowledge, batch_size, num_processes
+                )
 
-            # Update labels
-            self.update_counters(wins, draws, losses)
+                self.update_counters(wins, draws, losses)
 
-        messagebox.showinfo("Training Completed",
-                            "AI training completed successfully.")
+                current_iteration += 1
+                self.root.after(1, training_iteration)
+            else:
+                messagebox.showinfo("Training Completed", "AI training completed successfully.")
+
+        training_iteration()
+
+    def play_against_ai(self):
+        self.training_mode = False
+
+    def start_training(self):
+        self.training_mode = True
+        try:
+            num_games = int(self.num_games_var.get())
+            num_processes = int(self.num_processes_var.get())
+        except ValueError:
+            messagebox.showerror("Error", "Invalid input. Please enter valid numbers.")
+            return
+
+        self.run_training(num_games, num_processes)
 
     def update_counters(self, wins, draws, losses):
         self.win_label.config(text=f"Wins: {wins}")
         self.draw_label.config(text=f"Draws: {draws}")
         self.loss_label.config(text=f"Losses: {losses}")
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     root = tk.Tk()
-    app = trainingapp(root)
+    app = TrainingApp(root)
+    root.mainloop()
