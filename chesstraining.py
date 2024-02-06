@@ -16,7 +16,7 @@ class TrainingApp:
         self.logic_instance = Logic()
         self.ai_with_knowledge = AI(epsilon=0.2)
         self.ai_without_knowledge = AI(epsilon=1.0)
-        self.training_mode = False  # Flag to indicate training mode
+        self.training_mode = False
         self.setup_ui()
         self.wins = 0
         self.draws = 0
@@ -30,9 +30,9 @@ class TrainingApp:
 
         train_button = tk.Button(self.root, text="Train AI", command=self.start_training)
         train_button.pack(pady=20)
-
+ 
         self.win_label = tk.Label(self.root, text="Wins: 0")
-        self.win_label.pack(pady=5)
+        self.win_label.pack(pady=5)     
 
         self.draw_label = tk.Label(self.root, text="Draws: 0")
         self.draw_label.pack(pady=5)
@@ -43,11 +43,11 @@ class TrainingApp:
         self.root.mainloop()
 
     def create_label(self, text):
-        tk.Label(self.root, text=text).pack(pady=10)
+        tk.Label(self.root, text=text).pack(pady=10)   
 
     def create_entry(self, variable):
         tk.Entry(self.root, textvariable=variable).pack(pady=10)
-
+        
     def create_button(self, text, command):
         tk.Button(self.root, text=text, command=command).pack(pady=20)
 

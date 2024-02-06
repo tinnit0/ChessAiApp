@@ -4,17 +4,18 @@ import time
 from Chess_ai import AI
 from chess_control import chess_control
 from Chess_board import draw_chessboard
-from chess import QUEEN
 import pygame.mixer
 import random
 
+
+# deselect, win / lose / draw, stockfish, knoppen correct maken
 pygame.init()
 pygame.mixer.init()  
-capture_sound = pygame.mixer.Sound('ChessAiApp/sounds/capture.mp3')
-castle_sound = pygame.mixer.Sound('ChessAiApp/sounds/castle.mp3')
-movecheck_sound = pygame.mixer.Sound('ChessAiApp/sounds/move-check.mp3')
-moveself_sound = pygame.mixer.Sound('ChessAiApp/sounds/move-self.mp3')
-promote_sound = pygame.mixer.Sound('ChessAiApp/sounds/promote.mp3')
+capture_sound = pygame.mixer.Sound('sounds/capture.mp3')
+castle_sound = pygame.mixer.Sound('sounds/castle.mp3')
+movecheck_sound = pygame.mixer.Sound('sounds/move-check.mp3')
+moveself_sound = pygame.mixer.Sound('sounds/move-self.mp3')
+promote_sound = pygame.mixer.Sound('sounds/promote.mp3')
 
 WIDTH, HEIGHT = 600, 600
 SQUARE_SIZE = WIDTH // 8
@@ -26,18 +27,18 @@ board = chess.Board()
 current_player_color = chess.WHITE
 
 pieces = {
-    'r': pygame.image.load('ChessAiApp/icons/rB.png'),
-    'n': pygame.image.load('ChessAiApp/icons/nB.png'),
-    'b': pygame.image.load('ChessAiApp/icons/bB.png'),
-    'q': pygame.image.load('ChessAiApp/icons/QB.png'),
-    'k': pygame.image.load('ChessAiApp/icons/kB.png'),
-    'p': pygame.image.load('ChessAiApp/icons/pB.png'),
-    'R': pygame.image.load('ChessAiApp/icons/rW.png'),
-    'N': pygame.image.load('ChessAiApp/icons/nW.png'),
-    'B': pygame.image.load('ChessAiApp/icons/bW.png'),
-    'Q': pygame.image.load('ChessAiApp/icons/QW.png'),
-    'K': pygame.image.load('ChessAiApp/icons/kW.png'),
-    'P': pygame.image.load('ChessAiApp/icons/pW.png'),
+    'r': pygame.image.load('icons/rB.png'),
+    'n': pygame.image.load('icons/nB.png'),
+    'b': pygame.image.load('icons/bB.png'),
+    'q': pygame.image.load('icons/QB.png'),
+    'k': pygame.image.load('icons/kB.png'),        
+    'p': pygame.image.load('icons/pB.png'),
+    'R': pygame.image.load('icons/rW.png'),
+    'N': pygame.image.load('icons/nW.png'),
+    'B': pygame.image.load('icons/bW.png'),
+    'Q': pygame.image.load('icons/QW.png'),
+    'K': pygame.image.load('icons/kW.png'),
+    'P': pygame.image.load('icons/pW.png'),
 }
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -73,6 +74,9 @@ def play_moveself_sound():
 
 def play_promote_sound():
     promote_sound.play()
+
+def game_over():
+    pass
 
 def handle_promotion(move):
     global player_turn
@@ -110,14 +114,15 @@ def draw_legal_moves(square):
             col, row = chess.square_file(move.to_square), 7 - chess.square_rank(move.to_square)
             pygame.draw.rect(screen, HIGHLIGHT_COLOR, (col * SQUARE_SIZE, row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE), 5)
 
-def ai_make_move(self):
+
+def ai_make_move():
     global player_turn
-    if not self.player_turn:
-        move = self.chess_ai.choose_move(self.board)
+    if not player_turn:
+        move = chess_ai.choose_move(board)
         print(f"AI chose a move: {move.uci()}")
         time.sleep(1)
-        self.board.push(move)
-        self.player_turn = True
+        board.push(move)
+        player_turn = True
 
 def draw_options_menu():
     pygame.draw.rect(screen, (100, 100, 100), options_menu)
@@ -216,7 +221,7 @@ while running:
     pygame.display.flip()
     if not player_turn and not board.is_game_over() and not options_menu_open:
         time.sleep(0.5)
-        ai_move = chess_ai.make_ai_move(board)
+        ai_move = chess_ai.choose_move(board)
         captured_piece = board.piece_at(ai_move.to_square)
         if captured_piece:
             play_sound(capture_sound)

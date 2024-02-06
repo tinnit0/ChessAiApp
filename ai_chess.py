@@ -79,9 +79,8 @@ class AI:
             best_moves = [move for move, q_value in q_values.items()
                           if q_value == max_q_value]
             chosen_move = random.choice(best_moves)
-            if training_mode:
-                print(f"AI chose the best move from history during training: {
-                      chosen_move.uci()}")
+            print(f"AI chose the best move from history during training: {
+                    chosen_move.uci()}")
             return chosen_move
 
         chosen_move = random.choice(legal_moves)
